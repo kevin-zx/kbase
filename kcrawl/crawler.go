@@ -23,15 +23,19 @@ type cacheCrawler struct {
 	preHandles []func([]byte) []byte
 }
 
-func NewCacheCrawler(cacheDir string, header map[string]string) Crawler {
+func NewCacheCrawler(cacheDir string, header map[string]string, cos ...CrawlerOption) Crawler {
 	httpHeader := http.Header{}
 	for k, v := range header {
 		httpHeader.Add(k, v)
 	}
-	return &cacheCrawler{
+	c := &cacheCrawler{
 		cacheDir: kcache.NewFileCache(cacheDir),
 		header:   httpHeader,
 	}
+	for _, co := range cos {
+		co(c)
+	}
+	return c
 }
 
 func (c *cacheCrawler) Post(url string, payload string, data interface{}) error {
