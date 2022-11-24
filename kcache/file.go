@@ -55,3 +55,11 @@ func exists(fileName string) bool {
 func md5String(s string) string {
 	return fmt.Sprintf("%x", md5.Sum([]byte(s)))
 }
+
+func (c *FileCache) DeleteCache(key string) error {
+	key = md5String(key)
+	if !exists(path.Join(c.dir, key)) {
+		return nil
+	}
+	return os.Remove(path.Join(c.dir, key))
+}

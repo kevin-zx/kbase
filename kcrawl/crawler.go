@@ -13,6 +13,7 @@ import (
 
 type Crawler interface {
 	Get(url string, data interface{}) error
+	DeleteCache(url string) error
 	Post(url string, body string, data interface{}) error
 	GetTryCache(url []string, data interface{}) (bool, error)
 }
@@ -36,6 +37,10 @@ func NewCacheCrawler(cacheDir string, header map[string]string, cos ...CrawlerOp
 		co(c)
 	}
 	return c
+}
+
+func (c *cacheCrawler) DeleteCache(url string) error {
+	return c.cacheDir.DeleteCache(url)
 }
 
 func (c *cacheCrawler) Post(url string, payload string, data interface{}) error {
