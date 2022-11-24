@@ -68,7 +68,7 @@ func (c *cacheCrawler) Post(url string, payload string, data interface{}) error 
 		return err
 	}
 	defer res.Body.Close()
-	time.Sleep(1 * time.Second)
+	time.Sleep(5 * time.Second)
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return err
@@ -126,7 +126,7 @@ func (c *cacheCrawler) Get(url string, data interface{}) error {
 		return err
 	}
 	defer res.Body.Close()
-	time.Sleep(1 * time.Second)
+	time.Sleep(5 * time.Second)
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return err
