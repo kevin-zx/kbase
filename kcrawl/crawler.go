@@ -73,12 +73,15 @@ func (c *cacheCrawler) Post(url string, payload string, data interface{}) error 
 	if err != nil {
 		return err
 	}
+	if res.StatusCode != 200 {
+		return fmt.Errorf("status code error: %d %s and body is: %s", res.StatusCode, res.Status, string(body))
+	}
 	for _, preHandle := range c.preHandles {
 		body = preHandle(body)
 	}
 	err = json.Unmarshal(body, data)
 	if err != nil {
-		return err
+		return fmt.Errorf("unmarshal error: %s and body is: %s", err.Error(), string(body))
 	}
 	return c.cacheDir.Save(url+payload, body)
 }
@@ -131,6 +134,11 @@ func (c *cacheCrawler) Get(url string, data interface{}) error {
 	if err != nil {
 		return err
 	}
+
+	if res.StatusCode != 200 {
+		return fmt.Errorf("status code error: %d %s and body is: %s", res.StatusCode, res.Status, string(body))
+	}
+
 	for _, preHandle := range c.preHandles {
 		body = preHandle(body)
 	}
