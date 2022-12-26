@@ -13,7 +13,7 @@ type FileCache struct {
 	dir string
 }
 
-func NewFileCache(dir string) *FileCache {
+func NewFileCache(dir string) KCache {
 	return &FileCache{dir}
 }
 
@@ -56,7 +56,7 @@ func md5String(s string) string {
 	return fmt.Sprintf("%x", md5.Sum([]byte(s)))
 }
 
-func (c *FileCache) DeleteCache(key string) error {
+func (c *FileCache) Delete(key string) error {
 	key = md5String(key)
 	if !exists(path.Join(c.dir, key)) {
 		return nil

@@ -16,12 +16,14 @@ type Crawler interface {
 	DeleteCache(url string) error
 	Post(url string, body string, data interface{}) error
 	GetTryCache(url []string, data interface{}) (bool, error)
+	PostTryCache(urls []string, payloads []string, data interface{}) (bool, error)
 }
 
 type cacheCrawler struct {
-	cacheDir   *kcache.FileCache
-	header     http.Header
-	preHandles []func([]byte) []byte
+	cacheDir          kcache.KCache
+	header            http.Header
+	preHandles        []func([]byte) []byte
+	reCombineCacheKey func(string) string
 }
 
 func NewCacheCrawler(cacheDir string, header map[string]string, cos ...CrawlerOption) Crawler {
@@ -40,7 +42,7 @@ func NewCacheCrawler(cacheDir string, header map[string]string, cos ...CrawlerOp
 }
 
 func (c *cacheCrawler) DeleteCache(url string) error {
-	return c.cacheDir.DeleteCache(url)
+	return c.cacheDir.Delete(url)
 }
 
 func (c *cacheCrawler) Post(url string, payload string, data interface{}) error {
@@ -83,12 +85,38 @@ func (c *cacheCrawler) Post(url string, payload string, data interface{}) error 
 	if err != nil {
 		return fmt.Errorf("unmarshal error: %s and body is: %s", err.Error(), string(body))
 	}
-	return c.cacheDir.Save(url+payload, body)
+	return c.cacheDir.Save(c.generateCacheKey(url, payload), body)
+}
+
+func (c *cacheCrawler) PostTryCache(urls []string, payloads []string, data interface{}) (bool, error) {
+	for i, url := range urls {
+		raw, err := c.cacheDir.Get(c.generateCacheKey(url, payloads[i]))
+		if err != nil {
+			return false, err
+		}
+		if raw != nil {
+			err = json.Unmarshal(raw, data)
+			if err != nil {
+				return false, err
+			}
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// 如果payload为空，那么就是get请求
+func (c *cacheCrawler) generateCacheKey(url string, payload string) string {
+	cacheKey := url + payload
+	if c.reCombineCacheKey != nil {
+		cacheKey = c.reCombineCacheKey(cacheKey)
+	}
+	return cacheKey
 }
 
 func (c *cacheCrawler) GetTryCache(url []string, data interface{}) (bool, error) {
 	for _, u := range url {
-		raw, err := c.cacheDir.Get(u)
+		raw, err := c.cacheDir.Get(c.generateCacheKey(u, ""))
 		if err != nil {
 			return false, err
 		}
@@ -147,6 +175,5 @@ func (c *cacheCrawler) Get(url string, data interface{}) error {
 		fmt.Println(string(body))
 		return err
 	}
-
-	return c.cacheDir.Save(url, body)
+	return c.cacheDir.Save(c.generateCacheKey(url, ""), body)
 }
