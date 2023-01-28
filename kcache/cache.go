@@ -5,3 +5,8 @@ type KCache interface {
 	Save(key string, value []byte) error
 	Delete(key string) error
 }
+
+type KCloseCache interface {
+	KCache
+	Closer
+}

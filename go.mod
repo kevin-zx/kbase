@@ -6,6 +6,8 @@ require (
 	github.com/ClickHouse/clickhouse-go v1.5.4
 	github.com/ClickHouse/clickhouse-go/v2 v2.4.3
 	github.com/jmoiron/sqlx v1.3.5
+	github.com/mattn/go-sqlite3 v1.14.6
+	golang.org/x/text v0.3.3
 )
 
 require (

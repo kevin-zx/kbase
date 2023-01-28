@@ -12,13 +12,13 @@ type RawCacheCrawler interface {
 
 type rawCacheCrawler struct {
 	rawCrawler
-	cache             kcache.KCache
+	cache             kcache.KCloseCache
 	recombineCacheKey func(key string) string
 }
 
-func NewRawCacheCrawler(cacheDir string, opts ...RawCacheCrawlerOption) RawCacheCrawler {
+func NewRawCacheCrawler(cache kcache.KCloseCache, opts ...RawCacheCrawlerOption) RawCacheCrawler {
 	rcc := &rawCacheCrawler{
-		cache:      kcache.NewFileCache(cacheDir),
+		cache:      cache,
 		rawCrawler: rawCrawler{},
 	}
 	for _, opt := range opts {
