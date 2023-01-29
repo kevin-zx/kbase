@@ -5,15 +5,17 @@ package kcache
 import (
 	"database/sql"
 	"fmt"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
-type SqliteCache struct {
+type sqliteCache struct {
 	db        *sql.DB
 	prefix    string
 	tableName string
 }
 
-func NewSqliteCache(dbfile string, prefix string) (*SqliteCache, error) {
+func NewSqliteCache(dbfile string, prefix string) (*sqliteCache, error) {
 	conectFmt := "file:%s?cache=shared&mode=rwc"
 	db, err := sql.Open("sqlite3", fmt.Sprintf(conectFmt, dbfile))
 	if err != nil {
@@ -21,7 +23,7 @@ func NewSqliteCache(dbfile string, prefix string) (*SqliteCache, error) {
 	}
 	tableName := prefix + "_cache"
 
-	sc := &SqliteCache{
+	sc := &sqliteCache{
 		db:        db,
 		tableName: tableName,
 	}
@@ -32,7 +34,7 @@ func NewSqliteCache(dbfile string, prefix string) (*SqliteCache, error) {
 	return sc, nil
 }
 
-func (c *SqliteCache) createCacheTable() error {
+func (c *sqliteCache) createCacheTable() error {
 	_, err := c.db.Exec(
 		"CREATE TABLE IF NOT EXISTS " + c.tableName + " (key TEXT PRIMARY KEY, value BLOB, created_time DATETIME)",
 	)
@@ -43,7 +45,7 @@ func (c *SqliteCache) createCacheTable() error {
 	return err
 }
 
-func (c *SqliteCache) Get(key string) ([]byte, error) {
+func (c *sqliteCache) Get(key string) ([]byte, error) {
 	key = md5String(key)
 	var value []byte
 	err := c.db.QueryRow(
@@ -56,7 +58,7 @@ func (c *SqliteCache) Get(key string) ([]byte, error) {
 	return value, nil
 }
 
-func (s *SqliteCache) Save(key string, value []byte) error {
+func (s *sqliteCache) Save(key string, value []byte) error {
 	key = md5String(key)
 	err := s.Delete(key)
 	if err != nil {
@@ -70,7 +72,7 @@ func (s *SqliteCache) Save(key string, value []byte) error {
 	return err
 }
 
-func (s *SqliteCache) Delete(key string) error {
+func (s *sqliteCache) Delete(key string) error {
 	key = md5String(key)
 	_, err := s.db.Exec(
 		"DELETE FROM "+
@@ -80,6 +82,6 @@ func (s *SqliteCache) Delete(key string) error {
 	return err
 }
 
-func (s *SqliteCache) Close() error {
+func (s *sqliteCache) Close() error {
 	return s.db.Close()
 }
