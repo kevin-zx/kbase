@@ -1,6 +1,11 @@
 package kcrawl
 
-import "github.com/kevin-zx/kbase/kcache"
+import (
+	"encoding/json"
+	"time"
+
+	"github.com/kevin-zx/kbase/kcache"
+)
 
 // raw cache crawl
 type RawCacheCrawler interface {
@@ -37,8 +42,23 @@ func (rcc *rawCacheCrawler) Get(url string) ([]byte, error) {
 		return nil, err
 	}
 	key := rcc.CacheKey(url, "")
-	err = rcc.cache.Save(key, data)
+	cd := combineCacheData(url, "", "GET", data)
+	d, _ := json.Marshal(&cd)
+	err = rcc.cache.Save(key, d)
 	return data, err
+}
+
+func combineCacheData(url string, payload string, method string, data []byte) cacheData {
+	cd := cacheData{
+		Data: data,
+		Request: request{
+			Method:  method,
+			URL:     url,
+			Payload: payload,
+		},
+		CreatedAt: time.Now(),
+	}
+	return cd
 }
 
 func (rcc *rawCacheCrawler) Post(url string, payload string) ([]byte, error) {
@@ -50,17 +70,14 @@ func (rcc *rawCacheCrawler) Post(url string, payload string) ([]byte, error) {
 		return nil, err
 	}
 	key := rcc.CacheKey(url, payload)
-	err = rcc.cache.Save(key, data)
+	cd := combineCacheData(url, payload, "POST", data)
+	d, _ := json.Marshal(&cd)
+	err = rcc.cache.Save(key, d)
 	return data, err
 }
 
 func (rcc *rawCacheCrawler) GetCache(url string) ([]byte, error, bool) {
-	key := rcc.CacheKey(url, "")
-	data, err := rcc.cache.Get(key)
-	if err != nil {
-		return nil, err, false
-	}
-	return data, nil, data != nil
+	return rcc.getCache(url, "")
 }
 
 func (rcc *rawCacheCrawler) CacheKey(url string, payload string) string {
@@ -71,12 +88,24 @@ func (rcc *rawCacheCrawler) CacheKey(url string, payload string) string {
 }
 
 func (rcc *rawCacheCrawler) PostCache(url string, payload string) ([]byte, error, bool) {
+	return rcc.getCache(url, payload)
+}
+
+func (rcc *rawCacheCrawler) getCache(url string, payload string) ([]byte, error, bool) {
 	key := rcc.CacheKey(url, payload)
 	data, err := rcc.cache.Get(key)
 	if err != nil {
 		return nil, err, false
 	}
-	return data, nil, data != nil
+	cd := cacheData{}
+	err = json.Unmarshal(data, &cd)
+	if err != nil {
+		return data, nil, data != nil
+	}
+	if cd.Data == nil {
+		return data, nil, data != nil
+	}
+	return cd.Data, nil, cd.Data != nil
 }
 
 func (rcc *rawCacheCrawler) DeleteCache(url string, payload string) error {
