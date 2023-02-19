@@ -50,7 +50,7 @@ func (rcc *rawCacheCrawler) Get(url string) ([]byte, error) {
 
 func combineCacheData(url string, payload string, method string, data []byte) cacheData {
 	cd := cacheData{
-		Data: data,
+		Data: string(data),
 		Request: request{
 			Method:  method,
 			URL:     url,
@@ -102,10 +102,10 @@ func (rcc *rawCacheCrawler) getCache(url string, payload string) ([]byte, error,
 	if err != nil {
 		return data, nil, data != nil
 	}
-	if cd.Data == nil {
+	if cd.Data == "" {
 		return data, nil, data != nil
 	}
-	return cd.Data, nil, cd.Data != nil
+	return []byte(cd.Data), nil, cd.Data != ""
 }
 
 func (rcc *rawCacheCrawler) DeleteCache(url string, payload string) error {

@@ -4,7 +4,7 @@ import "time"
 
 type cacheData struct {
 	Request   request   `json:"request"`
-	Data      []byte    `json:"data"`
+	Data      string    `json:"data"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
