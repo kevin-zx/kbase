@@ -38,19 +38,19 @@ func NewImageDownloader(opts ...ImageDownloaderOption) *ImageDownloaderImpl {
 	return d
 }
 
-func (d *ImageDownloaderImpl) Download(url string, dir string) error {
+func (d *ImageDownloaderImpl) Download(url string, dir string) (string, error) {
 	// download image
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return err
+		return "", err
 	}
 	for k, v := range d.headers {
 		req.Header.Set(k, v)
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer resp.Body.Close()
 
@@ -75,13 +75,13 @@ func (d *ImageDownloaderImpl) Download(url string, dir string) error {
 	filePath := filepath.Join(dir, filename)
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	err = ioutil.WriteFile(filePath, data, 0644)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	return nil
+	return filePath, nil
 }
