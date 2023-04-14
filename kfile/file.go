@@ -1,6 +1,9 @@
 package kfile
 
-import "os"
+import (
+	"os"
+	"path"
+)
 
 func FileExist(filename string) bool {
 	_, err := os.Stat(filename)
@@ -18,4 +21,23 @@ func Mkdir(dir string) error {
 		return err
 	}
 	return nil
+}
+
+func GetFilesFromDir(dir string) ([]string, error) {
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	var filenames []string
+	for _, file := range files {
+		filenames = append(filenames, file.Name())
+	}
+	return filenames, nil
+}
+
+// remove file path and extension
+func GetPureFilename(filename string) string {
+	fn := path.Base(filename)
+	ext := path.Ext(fn)
+	return fn[:len(fn)-len(ext)]
 }
