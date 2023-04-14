@@ -2,6 +2,7 @@ package kcrawl
 
 import (
 	"encoding/json"
+	"sort"
 	"time"
 
 	"github.com/kevin-zx/kbase/kcache"
@@ -9,10 +10,12 @@ import (
 
 // raw cache crawl
 type RawCacheCrawler interface {
-	RawCrawler
-	GetCache(url string) ([]byte, error, bool)
-	PostCache(url string, payload string) ([]byte, error, bool)
-	DeleteCache(url string, payload string) error
+	// RawCrawler
+	Get(url string, keys ...string) ([]byte, error)
+	Post(url string, payload string, keys ...string) ([]byte, error)
+	GetCache(url string, keys ...string) ([]byte, error, bool)
+	PostCache(url string, payload string, keys ...string) ([]byte, error, bool)
+	DeleteCache(url string, payload string, keys ...string) error
 }
 
 type rawCacheCrawler struct {
@@ -33,8 +36,8 @@ func NewRawCacheCrawler(cache kcache.KCloseCache, opts ...RawCacheCrawlerOption)
 	return rcc
 }
 
-func (rcc *rawCacheCrawler) Get(url string) ([]byte, error) {
-	if data, err, ok := rcc.GetCache(url); ok {
+func (rcc *rawCacheCrawler) Get(url string, keys ...string) ([]byte, error) {
+	if data, err, ok := rcc.GetCache(url, keys...); ok {
 		return data, err
 	}
 	data, err := rcc.rawCrawler.Get(url)
@@ -61,38 +64,49 @@ func combineCacheData(url string, payload string, method string, data []byte) ca
 	return cd
 }
 
-func (rcc *rawCacheCrawler) Post(url string, payload string) ([]byte, error) {
-	if data, err, ok := rcc.PostCache(url, payload); ok {
+func (rcc *rawCacheCrawler) Post(url string, payload string, keys ...string) ([]byte, error) {
+	// key := rcc.CacheKey(url, payload, keys...)
+	if data, err, ok := rcc.PostCache(url, payload, keys...); ok {
 		return data, err
 	}
 	data, err := rcc.rawCrawler.Post(url, payload)
 	if err != nil {
 		return nil, err
 	}
-	key := rcc.CacheKey(url, payload)
 	cd := combineCacheData(url, payload, "POST", data)
 	d, _ := json.Marshal(&cd)
+	key := rcc.CacheKey(url, payload, keys...)
 	err = rcc.cache.Save(key, d)
 	return data, err
 }
 
-func (rcc *rawCacheCrawler) GetCache(url string) ([]byte, error, bool) {
-	return rcc.getCache(url, "")
+func (rcc *rawCacheCrawler) GetCache(url string, keys ...string) ([]byte, error, bool) {
+	return rcc.getCache(url, "", keys...)
 }
 
-func (rcc *rawCacheCrawler) CacheKey(url string, payload string) string {
-	if rcc.recombineCacheKey != nil {
-		return rcc.recombineCacheKey(url + payload)
+func (rcc *rawCacheCrawler) CacheKey(url string, payload string, keys ...string) string {
+	keyseed := url + payload
+	if len(keys) > 0 {
+		keyseed := ""
+		sortedKeys := sort.StringSlice(keys)
+		sortedKeys.Sort()
+		for _, k := range sortedKeys {
+			keyseed += k
+		}
 	}
-	return url + payload
+
+	if rcc.recombineCacheKey != nil {
+		return rcc.recombineCacheKey(keyseed)
+	}
+	return keyseed
 }
 
-func (rcc *rawCacheCrawler) PostCache(url string, payload string) ([]byte, error, bool) {
-	return rcc.getCache(url, payload)
+func (rcc *rawCacheCrawler) PostCache(url string, payload string, keys ...string) ([]byte, error, bool) {
+	return rcc.getCache(url, payload, keys...)
 }
 
-func (rcc *rawCacheCrawler) getCache(url string, payload string) ([]byte, error, bool) {
-	key := rcc.CacheKey(url, payload)
+func (rcc *rawCacheCrawler) getCache(url string, payload string, keys ...string) ([]byte, error, bool) {
+	key := rcc.CacheKey(url, payload, keys...)
 	data, err := rcc.cache.Get(key)
 	if err != nil {
 		return nil, err, false
@@ -108,7 +122,7 @@ func (rcc *rawCacheCrawler) getCache(url string, payload string) ([]byte, error,
 	return []byte(cd.Data), nil, cd.Data != ""
 }
 
-func (rcc *rawCacheCrawler) DeleteCache(url string, payload string) error {
-	key := rcc.CacheKey(url, payload)
+func (rcc *rawCacheCrawler) DeleteCache(url string, payload string, keys ...string) error {
+	key := rcc.CacheKey(url, payload, keys...)
 	return rcc.cache.Delete(key)
 }
