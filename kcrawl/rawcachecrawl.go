@@ -87,7 +87,7 @@ func (rcc *rawCacheCrawler) GetCache(url string, keys ...string) ([]byte, error,
 func (rcc *rawCacheCrawler) CacheKey(url string, payload string, keys ...string) string {
 	keyseed := url + payload
 	if len(keys) > 0 {
-		keyseed := ""
+		keyseed = ""
 		sortedKeys := sort.StringSlice(keys)
 		sortedKeys.Sort()
 		for _, k := range sortedKeys {
