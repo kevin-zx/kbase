@@ -65,7 +65,6 @@ func combineCacheData(url string, payload string, method string, data []byte) ca
 }
 
 func (rcc *rawCacheCrawler) Post(url string, payload string, keys ...string) ([]byte, error) {
-	// key := rcc.CacheKey(url, payload, keys...)
 	if data, err, ok := rcc.PostCache(url, payload, keys...); ok {
 		return data, err
 	}
