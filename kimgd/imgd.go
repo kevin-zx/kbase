@@ -20,8 +20,6 @@ type ImageDownloaderImpl struct {
 	headers map[string]string
 	// 是否覆盖已存在的文件
 	isOverwrite bool
-	// file prefix
-	prefix string
 }
 
 type ImageDownloaderOption func(*ImageDownloaderImpl)
@@ -50,8 +48,8 @@ func NewImageDownloader(opts ...ImageDownloaderOption) *ImageDownloaderImpl {
 	return d
 }
 
-func (d *ImageDownloaderImpl) Download(url string, dir string) (string, error) {
-	fileNameWithoutExt := d.generateFileName(url)
+func (d *ImageDownloaderImpl) Download(url string, dir string, prefix string) (string, error) {
+	fileNameWithoutExt := d.generateFileName(url, prefix)
 	if !d.isOverwrite {
 		if filePath, ok := d.isExistInDir(fileNameWithoutExt, dir); ok {
 			return filePath, nil
@@ -87,7 +85,7 @@ func (d *ImageDownloaderImpl) Download(url string, dir string) (string, error) {
 		ext = ".svg"
 	}
 	// 计算文件名
-	filename := fmt.Sprintf("%x%s", fileNameWithoutExt, ext)
+	filename := fmt.Sprintf("%s%s", fileNameWithoutExt, ext)
 
 	filePath := filepath.Join(dir, filename)
 	data, err := io.ReadAll(resp.Body)
@@ -116,10 +114,10 @@ func (d *ImageDownloaderImpl) isExistInDir(fileNameWithoutExt, dir string) (stri
 	return "", false
 }
 
-func (d *ImageDownloaderImpl) generateFileName(url string) string {
+func (d *ImageDownloaderImpl) generateFileName(url string, prefix string) string {
 	urlHash := md5.Sum([]byte(url))
-	if d.prefix == "" {
+	if prefix == "" {
 		return fmt.Sprintf("%x", urlHash)
 	}
-	return fmt.Sprintf("%s_%x", d.prefix, urlHash)
+	return fmt.Sprintf("%s_%x", prefix, urlHash)
 }
