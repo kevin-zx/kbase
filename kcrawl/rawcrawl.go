@@ -17,6 +17,7 @@ type rawCrawler struct {
 	header http.Header
 	// 每次请求之间的间隔时间，单位秒
 	intervalSeconds int
+	ProxyPool       ProxyPool
 }
 
 func NewRawCrawler(intervalSeconds int, header map[string]string) RawCrawler {
@@ -44,6 +45,15 @@ func (c *rawCrawler) Request(url string, payload string, method string) ([]byte,
 		payloadr = strings.NewReader(payload)
 	}
 	client := &http.Client{}
+	if c.ProxyPool != nil {
+		proxy := c.ProxyPool.GetHttpProxy()
+		if proxy != nil {
+			client.Transport = &http.Transport{
+				Proxy: http.ProxyURL(proxy),
+			}
+		}
+	}
+
 	req, err := http.NewRequest(method, url, payloadr)
 	if err != nil {
 		return nil, err

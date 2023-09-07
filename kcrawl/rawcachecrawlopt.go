@@ -12,7 +12,7 @@ func RawCacheCrawlerWithRecombineCacheKey(handleKey func(string) string) RawCach
 
 func RawCacheWithIntervalSeconds(intervalSeconds int) RawCacheCrawlerOption {
 	return func(c *rawCacheCrawler) {
-		c.rawCrawler.intervalSeconds = intervalSeconds
+		c.intervalSeconds = intervalSeconds
 	}
 }
 
@@ -22,6 +22,7 @@ func RawCacheWithHeader(header map[string]string) RawCacheCrawlerOption {
 		for k, v := range header {
 			httpHeader.Set(k, v)
 		}
-		c.rawCrawler.header = httpHeader
+		c.header = httpHeader
 	}
 }
+
