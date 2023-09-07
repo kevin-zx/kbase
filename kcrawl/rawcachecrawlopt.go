@@ -26,3 +26,8 @@ func RawCacheWithHeader(header map[string]string) RawCacheCrawlerOption {
 	}
 }
 
+func RawCacheWithProxyPool(proxyPool ProxyPool) RawCacheCrawlerOption {
+	return func(c *rawCacheCrawler) {
+		c.proxyPool = proxyPool
+	}
+}

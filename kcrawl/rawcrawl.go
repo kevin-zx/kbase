@@ -17,7 +17,7 @@ type rawCrawler struct {
 	header http.Header
 	// 每次请求之间的间隔时间，单位秒
 	intervalSeconds int
-	ProxyPool       ProxyPool
+	proxyPool       ProxyPool
 }
 
 func NewRawCrawler(intervalSeconds int, header map[string]string) RawCrawler {
