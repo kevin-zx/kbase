@@ -45,8 +45,8 @@ func (c *rawCrawler) Request(url string, payload string, method string) ([]byte,
 		payloadr = strings.NewReader(payload)
 	}
 	client := &http.Client{}
-	if c.ProxyPool != nil {
-		proxy := c.ProxyPool.GetHttpProxy()
+	if c.proxyPool != nil {
+		proxy := c.proxyPool.GetHttpProxy()
 		if proxy != nil {
 			client.Transport = &http.Transport{
 				Proxy: http.ProxyURL(proxy),
