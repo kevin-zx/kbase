@@ -13,6 +13,10 @@ type RawCacheCrawler interface {
 	// RawCrawler
 	Get(url string, keys ...string) ([]byte, error)
 	Post(url string, payload string, keys ...string) ([]byte, error)
+
+	GetWithHeader(url string, header map[string]string, keys ...string) ([]byte, error)
+	PostWithHeader(url string, payload string, header map[string]string, keys ...string) ([]byte, error)
+
 	GetCache(url string, keys ...string) ([]byte, error, bool)
 	PostCache(url string, payload string, keys ...string) ([]byte, error, bool)
 	DeleteCache(url string, payload string, keys ...string) error
@@ -36,11 +40,11 @@ func NewRawCacheCrawler(cache kcache.KCloseCache, opts ...RawCacheCrawlerOption)
 	return rcc
 }
 
-func (rcc *rawCacheCrawler) Get(url string, keys ...string) ([]byte, error) {
+func (rcc *rawCacheCrawler) GetWithHeader(url string, header map[string]string, keys ...string) ([]byte, error) {
 	if data, err, ok := rcc.GetCache(url, keys...); ok {
 		return data, err
 	}
-	data, err := rcc.rawCrawler.Get(url)
+	data, err := rcc.rawCrawler.GetWithHeader(url, header)
 	if err != nil {
 		return nil, err
 	}
@@ -49,6 +53,10 @@ func (rcc *rawCacheCrawler) Get(url string, keys ...string) ([]byte, error) {
 	d, _ := json.Marshal(&cd)
 	err = rcc.cache.Save(key, d)
 	return data, err
+}
+
+func (rcc *rawCacheCrawler) Get(url string, keys ...string) ([]byte, error) {
+	return rcc.GetWithHeader(url, nil, keys...)
 }
 
 func combineCacheData(url string, payload string, method string, data []byte) cacheData {
@@ -64,19 +72,23 @@ func combineCacheData(url string, payload string, method string, data []byte) ca
 	return cd
 }
 
-func (rcc *rawCacheCrawler) Post(url string, payload string, keys ...string) ([]byte, error) {
+func (rcc *rawCacheCrawler) PostWithHeader(url string, payload string, header map[string]string, keys ...string) ([]byte, error) {
 	if data, err, ok := rcc.PostCache(url, payload, keys...); ok {
 		return data, err
 	}
-	data, err := rcc.rawCrawler.Post(url, payload)
+	data, err := rcc.rawCrawler.PostWithHeader(url, payload, header)
 	if err != nil {
 		return nil, err
 	}
+	key := rcc.CacheKey(url, payload)
 	cd := combineCacheData(url, payload, "POST", data)
 	d, _ := json.Marshal(&cd)
-	key := rcc.CacheKey(url, payload, keys...)
 	err = rcc.cache.Save(key, d)
 	return data, err
+}
+
+func (rcc *rawCacheCrawler) Post(url string, payload string, keys ...string) ([]byte, error) {
+	return rcc.PostWithHeader(url, payload, nil, keys...)
 }
 
 func (rcc *rawCacheCrawler) GetCache(url string, keys ...string) ([]byte, error, bool) {
