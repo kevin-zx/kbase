@@ -11,6 +11,9 @@ import (
 type RawCrawler interface {
 	Get(url string) ([]byte, error)
 	Post(url string, payload string) ([]byte, error)
+
+	GetWithHeader(url string, header map[string]string) ([]byte, error)
+	PostWithHeader(url string, payload string, header map[string]string) ([]byte, error)
 }
 
 type rawCrawler struct {
@@ -31,15 +34,23 @@ func NewRawCrawler(intervalSeconds int, header map[string]string) RawCrawler {
 	}
 }
 
+func (c *rawCrawler) GetWithHeader(url string, header map[string]string) ([]byte, error) {
+	return c.Request(url, "", "GET", header)
+}
+
+func (c *rawCrawler) PostWithHeader(url string, payload string, header map[string]string) ([]byte, error) {
+	return c.Request(url, payload, "POST", header)
+}
+
 func (c *rawCrawler) Get(url string) ([]byte, error) {
-	return c.Request(url, "", "GET")
+	return c.Request(url, "", "GET", nil)
 }
 
 func (c *rawCrawler) Post(url string, payload string) ([]byte, error) {
-	return c.Request(url, payload, "POST")
+	return c.Request(url, payload, "POST", nil)
 }
 
-func (c *rawCrawler) Request(url string, payload string, method string) ([]byte, error) {
+func (c *rawCrawler) Request(url string, payload string, method string, header map[string]string) ([]byte, error) {
 	var payloadr io.Reader
 	if payload != "" {
 		payloadr = strings.NewReader(payload)
@@ -59,6 +70,11 @@ func (c *rawCrawler) Request(url string, payload string, method string) ([]byte,
 		return nil, err
 	}
 	req.Header = c.header
+	if header != nil {
+		for k, v := range header {
+			req.Header.Set(k, v)
+		}
+	}
 	res, err := client.Do(req)
 	if err != nil {
 		return nil, err
