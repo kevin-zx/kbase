@@ -39,7 +39,9 @@ func ParseBrand(raw string) Brand {
 
 	// Regular expressions to match Chinese and English parts
 	reChinese := regexp.MustCompile(`[\p{Han}]+`)
-	reEnglish := regexp.MustCompile(`[a-zA-Z]+`)
+	//
+	reEnglish := regexp.MustCompile(`[a-zA-Z0-9]+`)
+	// reEnglish := regexp.MustCompile(`[a-zA-Z]+`)
 
 	// Find all Chinese parts
 	chineseParts := reChinese.FindAllString(raw, -1)

@@ -62,6 +62,42 @@ func TestParseBrand(t *testing.T) {
 				CN:  "网易严选",
 			},
 		},
+		// 3M
+		{
+			name: "3M",
+			args: args{
+				raw: "3M",
+			},
+			want: Brand{
+				Raw: "3M",
+				EN:  "3M",
+				CN:  "",
+			},
+		},
+		// 8H
+		{
+			name: "8H",
+			args: args{
+				raw: "8H",
+			},
+			want: Brand{
+				Raw: "8H",
+				EN:  "8H",
+				CN:  "",
+			},
+		},
+		// 第一森林（First Forest）
+		{
+			name: "第一森林（First Forest）",
+			args: args{
+				raw: "第一森林（First Forest）",
+			},
+			want: Brand{
+				Raw: "第一森林（First Forest）",
+				EN:  "First Forest",
+				CN:  "第一森林",
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
