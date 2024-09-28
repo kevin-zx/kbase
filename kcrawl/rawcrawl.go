@@ -1,6 +1,7 @@
 package kcrawl
 
 import (
+	"compress/flate"
 	"fmt"
 	"io"
 	"net/http"
@@ -19,8 +20,9 @@ type RawCrawler interface {
 type rawCrawler struct {
 	header http.Header
 	// 每次请求之间的间隔时间，单位秒
-	intervalSeconds int
-	proxyPool       ProxyPool
+	intervalSeconds      int
+	proxyPool            ProxyPool
+	hasDeflateCompressed bool
 }
 
 func NewRawCrawler(intervalSeconds int, header map[string]string) RawCrawler {
@@ -70,10 +72,8 @@ func (c *rawCrawler) Request(url string, payload string, method string, header m
 		return nil, err
 	}
 	req.Header = c.header
-	if header != nil {
-		for k, v := range header {
-			req.Header.Set(k, v)
-		}
+	for k, v := range header {
+		req.Header.Set(k, v)
 	}
 	res, err := client.Do(req)
 	if err != nil {
@@ -81,10 +81,22 @@ func (c *rawCrawler) Request(url string, payload string, method string, header m
 	}
 	defer res.Body.Close()
 	time.Sleep(time.Duration(c.intervalSeconds) * time.Second)
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, err
+	var body []byte
+	// 如果有 deflate 压缩，需要解压
+	if c.hasDeflateCompressed {
+		flateReader := flate.NewReader(res.Body)
+		defer flateReader.Close()
+		body, err = io.ReadAll(flateReader)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		body, err = io.ReadAll(res.Body)
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	if res.StatusCode != 200 {
 		return nil, fmt.Errorf("status code error: %d %s and body is: %s", res.StatusCode, res.Status, string(body))
 	}

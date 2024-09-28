@@ -31,3 +31,9 @@ func RawCacheWithProxyPool(proxyPool ProxyPool) RawCacheCrawlerOption {
 		c.proxyPool = proxyPool
 	}
 }
+
+func RawCacheWithHasDeflatCompressed(has bool) RawCacheCrawlerOption {
+	return func(c *rawCacheCrawler) {
+		c.hasDeflateCompressed = has
+	}
+}
