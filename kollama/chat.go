@@ -23,6 +23,11 @@ type Chat struct {
 	Stream   bool          `json:"stream"` // Controls whether we use streaming or not
 }
 
+// clear messages
+func (c *Chat) ClearMessages() {
+	c.Messages = []ChatMessage{}
+}
+
 // ChatResponse represents the response from the API
 type ChatResponse struct {
 	Model         string      `json:"model"`
