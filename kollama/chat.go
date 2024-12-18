@@ -21,6 +21,7 @@ type Chat struct {
 	Model    string        `json:"model"`
 	Messages []ChatMessage `json:"messages"`
 	Stream   bool          `json:"stream"` // Controls whether we use streaming or not
+	Format   *Format       `json:"format"`
 }
 
 // clear messages
@@ -40,16 +41,24 @@ type ChatResponse struct {
 	EvalDuration  int64       `json:"eval_duration"`
 }
 
-// NewChat initializes a new chat session with the provided model
-func NewChat(model string) *Chat {
+// NewChat initializes a new chat session with the provided model and format
+func NewChat(model string, format *Format) *Chat {
 	if model == "" {
 		model = "qwen2.5:7B"
 	}
 	return &Chat{
 		Model:    model,
 		Messages: []ChatMessage{},
-		// Stream:   stream,
+		Stream:   false,
+		Format:   format,
 	}
+}
+
+type Payload struct {
+	Model    string        `json:"model"`
+	Messages []ChatMessage `json:"messages"`
+	Stream   bool          `json:"stream"`
+	Format   *Format       `json:"format,omitempty"`
 }
 
 // SendMessage sends a user message to the chat API and returns the assistant's response (non-streaming)
@@ -61,10 +70,11 @@ func (c *Chat) SendMessage(userMessage string) (ChatMessage, error) {
 	})
 
 	// Prepare the request payload
-	payload := map[string]interface{}{
-		"model":    c.Model,
-		"messages": c.Messages,
-		"stream":   false, // False for non-streaming
+	payload := Payload{
+		Model:    c.Model,
+		Messages: c.Messages,
+		Stream:   false, // False for non-streaming
+		Format:   c.Format,
 	}
 
 	// Convert payload to JSON
@@ -93,6 +103,16 @@ func (c *Chat) SendMessage(userMessage string) (ChatMessage, error) {
 	return chatResponse.Message, nil
 }
 
+type Format struct {
+	Type       string              `json:"type"`
+	Required   []string            `json:"required"`
+	Properties map[string]Property `json:"properties"`
+}
+
+type Property struct {
+	Type string `json:"type"`
+}
+
 // SendStreamMessage sends a user message to the chat API and processes the response as a stream
 func (c *Chat) SendStreamMessage(userMessage string) (*ChatMessage, error) {
 	// Append the user's message to the conversation
@@ -102,10 +122,11 @@ func (c *Chat) SendStreamMessage(userMessage string) (*ChatMessage, error) {
 	})
 
 	// Prepare the request payload
-	payload := map[string]interface{}{
-		"model":    c.Model,
-		"messages": c.Messages,
-		"stream":   true, // Set streaming to true
+	payload := Payload{
+		Model:    c.Model,
+		Messages: c.Messages,
+		Stream:   true, // Set streaming to true
+		Format:   c.Format,
 	}
 
 	// Convert payload to JSON
