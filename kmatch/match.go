@@ -11,6 +11,7 @@ type KMatch struct {
 	Matches  []string // 至少包含的字符串
 	Musts    []string // 必须包含的字符串
 	Excludes []string // 需要排除的字符串
+	Clears   []string // 需要清除的字符串
 }
 
 type kMatcher struct {
@@ -33,6 +34,12 @@ func (m *kMatcher) Match(txt string) bool {
 
 // 只执行一个match
 func (m *kMatcher) matchOne(km KMatch, txt string) bool {
+	for _, clear := range km.Clears {
+		if m.ignoreCase {
+			clear = strings.ToLower(clear)
+		}
+		txt = strings.ReplaceAll(txt, clear, "")
+	}
 	for _, must := range km.Musts {
 		if m.ignoreCase {
 			must = strings.ToLower(must)
