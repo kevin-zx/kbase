@@ -148,7 +148,7 @@ func (c *Chat) SendStreamMessage(userMessage string) (*ChatMessage, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to unmarshal stream chunk: %v", err)
 		}
-		fmt.Printf("%s", chatResponse.Message.Content)
+		// fmt.Printf("%s", chatResponse.Message.Content)
 		// Append the message to the result
 		streamMessages = append(streamMessages, chatResponse.Message)
 
