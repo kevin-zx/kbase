@@ -22,7 +22,7 @@ func NewKproductModelExtractor(brands []string, excludes []string, preModels []s
 	}
 
 	for i, p := range preModels {
-		preModels[i] = strings.ToLower(p)
+		preModels[i] = cleanModel(strings.ToLower(p))
 	}
 
 	return &KproductModelExtractor{
@@ -43,7 +43,7 @@ func (k *KproductModelExtractor) ExtractModel(s string) (string, bool) {
 	}
 	// 使用正则表达式查找所有匹配的部分，并返回第一个找到的型号部分（假设只有一个）
 	if match := modelRegex.FindString(s); match != "" {
-		return k.cleanModel(match), true
+		return cleanModel(match), true
 	}
 
 	// 如果没有找到任何匹配，返回空字符串和 false
@@ -55,9 +55,12 @@ func (k *KproductModelExtractor) ExtractModel(s string) (string, bool) {
 var reLeading = regexp.MustCompile(`^[^\p{L}\p{N}]+`)
 var reTrailing = regexp.MustCompile(`[^\p{L}\p{N}]+$`)
 
-func (k *KproductModelExtractor) cleanModel(model string) string {
+func cleanModel(model string) string {
 	model = reLeading.ReplaceAllString(model, "")
 	model = reTrailing.ReplaceAllString(model, "")
+	model = strings.Trim(model, " ")
+	model = strings.ReplaceAll(model, "_", "-")
+	model = strings.ReplaceAll(model, " ", "-")
 	return model
 }
 
