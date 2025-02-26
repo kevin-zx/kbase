@@ -12,9 +12,11 @@ import (
 type RawCrawler interface {
 	Get(url string) ([]byte, error)
 	Post(url string, payload string) ([]byte, error)
+	Put(url string, payload string) ([]byte, error)
 
 	GetWithHeader(url string, header map[string]string) ([]byte, error)
 	PostWithHeader(url string, payload string, header map[string]string) ([]byte, error)
+	PutWithHeader(url string, payload string, header map[string]string) ([]byte, error)
 }
 
 type rawCrawler struct {
@@ -50,6 +52,15 @@ func (c *rawCrawler) Get(url string) ([]byte, error) {
 
 func (c *rawCrawler) Post(url string, payload string) ([]byte, error) {
 	return c.Request(url, payload, "POST", nil)
+}
+
+// put
+func (c *rawCrawler) Put(url string, payload string) ([]byte, error) {
+	return c.Request(url, payload, "PUT", nil)
+}
+
+func (c *rawCrawler) PutWithHeader(url string, payload string, header map[string]string) ([]byte, error) {
+	return c.Request(url, payload, "PUT", header)
 }
 
 func (c *rawCrawler) Request(url string, payload string, method string, header map[string]string) ([]byte, error) {
