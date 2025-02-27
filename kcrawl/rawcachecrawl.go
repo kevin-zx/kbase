@@ -98,9 +98,10 @@ func (rcc *rawCacheCrawler) Put(url string, payload string, keys ...string) ([]b
 }
 
 func (rcc *rawCacheCrawler) PutWithHeader(url string, payload string, header map[string]string, keys ...string) ([]byte, error) {
-	if data, err, ok := rcc.GetCache(url, keys...); ok {
+	if data, err, ok := rcc.PutCache(url, payload, keys...); ok {
 		return data, err
 	}
+
 	data, err := rcc.rawCrawler.PutWithHeader(url, payload, header)
 	if err != nil {
 		return nil, err
@@ -135,6 +136,11 @@ func (rcc *rawCacheCrawler) CacheKey(url string, payload string, keys ...string)
 }
 
 func (rcc *rawCacheCrawler) PostCache(url string, payload string, keys ...string) ([]byte, error, bool) {
+	return rcc.getCache(url, payload, keys...)
+}
+
+// PutCache
+func (rcc *rawCacheCrawler) PutCache(url string, payload string, keys ...string) ([]byte, error, bool) {
 	return rcc.getCache(url, payload, keys...)
 }
 
