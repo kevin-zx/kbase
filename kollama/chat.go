@@ -8,6 +8,8 @@ import (
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/invopop/jsonschema"
 )
 
 // ChatMessage represents a single message in the conversation
@@ -52,6 +54,73 @@ func NewChat(model string, format *Format) *Chat {
 		Stream:   false,
 		Format:   format,
 	}
+}
+
+type SchemaPayload struct {
+	Model    string             `json:"model"`
+	Messages []ChatMessage      `json:"messages"`
+	Stream   bool               `json:"stream"`
+	Format   *jsonschema.Schema `json:"format,omitempty"`
+}
+
+func GenerateSchema[T any]() *jsonschema.Schema {
+	reflector := jsonschema.Reflector{
+		AllowAdditionalProperties: false, // 禁止额外字段
+		DoNotReference:            true,  // 内联而非引用
+	}
+	var v T
+	schema := reflector.Reflect(v)
+	return schema
+}
+
+// send schema message
+func (c *Chat) SendSchemaMessage(
+	schema *jsonschema.Schema,
+	config JSONStructureConfig,
+	userMessage string,
+) (ChatMessage, error) {
+
+	c.Messages = append(c.Messages, ChatMessage{
+		Role:    "system",
+		Content: config.FormatSystemPrompt(),
+	})
+
+	c.Messages = append(c.Messages, ChatMessage{
+		Role:    "user",
+		Content: userMessage,
+	})
+
+	// Prepare the request schema Schema
+	payload := SchemaPayload{
+		Model:    c.Model,
+		Messages: c.Messages,
+		Stream:   false, // False for non-streaming
+		Format:   schema,
+	}
+	// Convert payload to JSON
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return ChatMessage{}, fmt.Errorf("failed to marshal payload: %v", err)
+	}
+
+	// Send the HTTP POST request
+	resp, err := http.Post("http://localhost:11434/api/chat", "application/json", bytes.NewBuffer(payloadBytes))
+	if err != nil {
+		return ChatMessage{}, fmt.Errorf("failed to send POST request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Decode the response
+	var chatResponse ChatResponse
+	err = json.NewDecoder(resp.Body).Decode(&chatResponse)
+	if err != nil {
+		return ChatMessage{}, fmt.Errorf("failed to decode response: %v", err)
+	}
+
+	// Add assistant's response to the conversation history
+	c.Messages = append(c.Messages, chatResponse.Message)
+
+	return chatResponse.Message, nil
 }
 
 type Payload struct {
@@ -105,8 +174,8 @@ func (c *Chat) SendMessage(userMessage string) (ChatMessage, error) {
 
 type Format struct {
 	Type       string              `json:"type"`
-	Required   []string            `json:"required"`
-	Properties map[string]Property `json:"properties"`
+	Required   []string            `json:"required,omitempty`
+	Properties map[string]Property `json:"properties,omitempty"`
 }
 
 type Property struct {
@@ -208,4 +277,26 @@ func (c *Chat) MergeMessages(messages []ChatMessage) (*ChatMessage, error) {
 	}
 
 	return &message, nil
+}
+
+// JSONStructureConfig 封装JSON结构化输出的配置
+type JSONStructureConfig struct {
+	SystemPrompt      string // 系统提示内容，描述输出要求
+	ExampleInput      string // 示例输入
+	ExampleJSONOutput string // 示例JSON输出格式
+}
+
+func (c *JSONStructureConfig) SetExampleOutput(example interface{}) error {
+	jsonBytes, err := json.MarshalIndent(example, "", "  ")
+	if err != nil {
+		return err
+	}
+	c.ExampleJSONOutput = string(jsonBytes)
+	return nil
+}
+
+// FormatSystemPrompt 将配置格式化为完整的系统提示
+func (c *JSONStructureConfig) FormatSystemPrompt() string {
+	return fmt.Sprintf("%s\n\nEXAMPLE INPUT:\n%s\n\nEXAMPLE JSON OUTPUT:\n%s",
+		c.SystemPrompt, c.ExampleInput, c.ExampleJSONOutput)
 }
