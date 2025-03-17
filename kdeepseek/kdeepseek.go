@@ -13,6 +13,7 @@ type Client struct {
 	token      string
 	baseURL    string
 	httpClient *http.Client
+	model      string // 新增默认模型字段
 }
 
 // ClientOption 是配置客户端的函数类型
@@ -24,6 +25,7 @@ func NewClient(token string, options ...ClientOption) *Client {
 		token:      token,
 		baseURL:    "https://api.deepseek.com",
 		httpClient: http.DefaultClient,
+		model:      "deepseek-chat", // 设置默认模型
 	}
 
 	for _, opt := range options {
@@ -43,6 +45,13 @@ func WithHTTPClient(client *http.Client) ClientOption {
 func WithBaseURL(baseURL string) ClientOption {
 	return func(c *Client) {
 		c.baseURL = baseURL
+	}
+}
+
+// WithModel 设置默认模型
+func WithModel(model string) ClientOption {
+	return func(c *Client) {
+		c.model = model
 	}
 }
 
@@ -99,7 +108,7 @@ func (c *Client) CreateChatCompletion(req *ChatCompletionRequest) (*ChatCompleti
 		return nil, fmt.Errorf("messages cannot be empty")
 	}
 	if req.Model == "" {
-		return nil, fmt.Errorf("model cannot be empty")
+		req.Model = c.model // 如果未指定模型，使用客户端默认模型
 	}
 
 	// 序列化请求体
@@ -185,10 +194,16 @@ func (c *Client) CreateJSONStructuredCompletion(
 		{Role: "user", Content: userPrompt},
 	}
 
+	// 如果未指定模型，使用客户端默认模型
+	modelToUse := model
+	if modelToUse == "" {
+		modelToUse = c.model
+	}
+
 	// 创建请求
 	req := &ChatCompletionRequest{
 		Messages: messages,
-		Model:    model,
+		Model:    modelToUse,
 		ResponseFormat: &ResponseFormat{
 			Type: "json_object",
 		},
@@ -196,4 +211,35 @@ func (c *Client) CreateJSONStructuredCompletion(
 
 	// 发送请求并直接返回响应
 	return c.CreateChatCompletion(req)
+}
+
+// SimpleChat 提供简化的聊天接口，只需提供提示文本即可获取回复
+func (c *Client) SimpleChat(prompt string) (string, error) {
+	// 创建请求消息
+	messages := []Message{
+		{
+			Role:    "user",
+			Content: prompt,
+		},
+	}
+
+	// 创建聊天补全请求
+	req := &ChatCompletionRequest{
+		Messages: messages,
+		Model:    c.model,
+	}
+
+	// 调用API
+	resp, err := c.CreateChatCompletion(req)
+	if err != nil {
+		return "", err
+	}
+
+	// 检查响应是否有内容
+	if len(resp.Choices) == 0 {
+		return "", fmt.Errorf("no response received")
+	}
+
+	// 返回助手的回复文本
+	return resp.Choices[0].Message.Content, nil
 }
