@@ -14,6 +14,7 @@ type Client struct {
 	baseURL    string
 	httpClient *http.Client
 	model      string // 新增默认模型字段
+	system     string // 新增默认系统字段
 }
 
 // ClientOption 是配置客户端的函数类型
@@ -32,6 +33,12 @@ func NewClient(token string, options ...ClientOption) *Client {
 		opt(c)
 	}
 	return c
+}
+
+func WithSystem(system string) ClientOption {
+	return func(c *Client) {
+		c.system = system
+	}
 }
 
 // WithHTTPClient 设置自定义HTTP客户端
@@ -215,13 +222,19 @@ func (c *Client) CreateJSONStructuredCompletion(
 
 // SimpleChat 提供简化的聊天接口，只需提供提示文本即可获取回复
 func (c *Client) SimpleChat(prompt string) (string, error) {
-	// 创建请求消息
-	messages := []Message{
-		{
-			Role:    "user",
-			Content: prompt,
-		},
+	messages := []Message{}
+	if c.system != "" {
+		messages = append(messages, Message{
+			Role:    "system",
+			Content: c.system,
+		})
 	}
+
+	// 创建请求消息
+	messages = append(messages, Message{
+		Role:    "user",
+		Content: prompt,
+	})
 
 	// 创建聊天补全请求
 	req := &ChatCompletionRequest{

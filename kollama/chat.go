@@ -20,10 +20,11 @@ type ChatMessage struct {
 
 // Chat represents the entire conversation with the API and handles message sending
 type Chat struct {
-	Model    string        `json:"model"`
-	Messages []ChatMessage `json:"messages"`
-	Stream   bool          `json:"stream"` // Controls whether we use streaming or not
-	Format   *Format       `json:"format"`
+	Model        string        `json:"model"`
+	Messages     []ChatMessage `json:"messages"`
+	Stream       bool          `json:"stream"` // Controls whether we use streaming or not
+	Format       *Format       `json:"format"`
+	SystemPrompt string        `json:"-"` // System prompt to add at the beginning of each conversation
 }
 
 // clear messages
@@ -49,11 +50,30 @@ func NewChat(model string, format *Format) *Chat {
 		model = "qwen2.5:7B"
 	}
 	return &Chat{
-		Model:    model,
-		Messages: []ChatMessage{},
-		Stream:   false,
-		Format:   format,
+		Model:        model,
+		Messages:     []ChatMessage{},
+		Stream:       false,
+		Format:       format,
+		SystemPrompt: "", // Default to empty string
 	}
+}
+
+// SetSystemPrompt sets the system prompt to be used in conversations
+func (c *Chat) SetSystemPrompt(prompt string) {
+	c.SystemPrompt = prompt
+}
+
+// prepareMessagesForAPI prepares messages for API call, adding system prompt if set
+func (c *Chat) prepareMessagesForAPI() {
+
+	// Add system message if set
+	if c.SystemPrompt != "" && len(c.Messages) == 0 {
+		c.Messages = append(c.Messages, ChatMessage{
+			Role:    "system",
+			Content: c.SystemPrompt,
+		})
+	}
+
 }
 
 type SchemaPayload struct {
@@ -132,6 +152,7 @@ type Payload struct {
 
 // SendMessage sends a user message to the chat API and returns the assistant's response (non-streaming)
 func (c *Chat) SendMessage(userMessage string) (ChatMessage, error) {
+	c.prepareMessagesForAPI()
 	// Append the user's message to the conversation
 	c.Messages = append(c.Messages, ChatMessage{
 		Role:    "user",
@@ -184,6 +205,7 @@ type Property struct {
 
 // SendStreamMessage sends a user message to the chat API and processes the response as a stream
 func (c *Chat) SendStreamMessage(userMessage string) (*ChatMessage, error) {
+	c.prepareMessagesForAPI()
 	// Append the user's message to the conversation
 	c.Messages = append(c.Messages, ChatMessage{
 		Role:    "user",
