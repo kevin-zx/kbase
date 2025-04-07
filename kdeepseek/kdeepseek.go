@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
+	"time"
 )
 
 // Client 用于与DeepSeek API交互的客户端
@@ -22,10 +24,13 @@ type ClientOption func(*Client)
 
 // NewClient 创建新的DeepSeek客户端
 func NewClient(token string, options ...ClientOption) *Client {
+	httpClient := &http.Client{
+		Timeout: 300 * time.Second,
+	}
 	c := &Client{
 		token:      token,
 		baseURL:    "https://api.deepseek.com",
-		httpClient: http.DefaultClient,
+		httpClient: httpClient,
 		model:      "deepseek-chat", // 设置默认模型
 	}
 
@@ -166,6 +171,7 @@ type JSONStructureConfig struct {
 	SystemPrompt      string // 系统提示内容，描述输出要求
 	ExampleInput      string // 示例输入
 	ExampleJSONOutput string // 示例JSON输出格式
+	JsonSchema        string // JSON Schema
 }
 
 func (c *JSONStructureConfig) SetExampleOutput(example interface{}) error {
@@ -179,8 +185,12 @@ func (c *JSONStructureConfig) SetExampleOutput(example interface{}) error {
 
 // FormatSystemPrompt 将配置格式化为完整的系统提示
 func (c *JSONStructureConfig) FormatSystemPrompt() string {
-	return fmt.Sprintf("%s\n\nEXAMPLE INPUT:\n%s\n\nEXAMPLE JSON OUTPUT:\n%s",
+	prompt := fmt.Sprintf("%s\n\nEXAMPLE INPUT:\n%s\n\nEXAMPLE JSON OUTPUT:\n%s ",
 		c.SystemPrompt, c.ExampleInput, c.ExampleJSONOutput)
+	if c.JsonSchema != "" {
+		prompt += fmt.Sprintf("\n\nJSON SCHEMA:\n%s", c.JsonSchema)
+	}
+	return prompt
 }
 
 // CreateJSONStructuredCompletion 创建生成JSON结构化输出的聊天补全
@@ -200,6 +210,9 @@ func (c *Client) CreateJSONStructuredCompletion(
 		{Role: "system", Content: fullSystemPrompt},
 		{Role: "user", Content: userPrompt},
 	}
+
+	log.Printf("System Prompt: %s\n", fullSystemPrompt)
+	log.Printf("User Prompt: %s\n", userPrompt)
 
 	// 如果未指定模型，使用客户端默认模型
 	modelToUse := model
