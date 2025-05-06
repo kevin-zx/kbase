@@ -12,15 +12,23 @@ import (
 
 // Client 用于与DeepSeek API交互的客户端
 type Client struct {
-	token      string
-	baseURL    string
-	httpClient *http.Client
-	model      string // 新增默认模型字段
-	system     string // 新增默认系统字段
+	token       string
+	baseURL     string
+	httpClient  *http.Client
+	model       string // 新增默认模型字段
+	system      string // 新增默认系统字段
+	temperature float64
 }
 
 // ClientOption 是配置客户端的函数类型
 type ClientOption func(*Client)
+
+// WithTemperature 设置温度
+func WithTemperature(temp float64) ClientOption {
+	return func(c *Client) {
+		c.temperature = temp
+	}
+}
 
 // NewClient 创建新的DeepSeek客户端
 func NewClient(token string, options ...ClientOption) *Client {
@@ -28,10 +36,11 @@ func NewClient(token string, options ...ClientOption) *Client {
 		Timeout: 300 * time.Second,
 	}
 	c := &Client{
-		token:      token,
-		baseURL:    "https://api.deepseek.com",
-		httpClient: httpClient,
-		model:      "deepseek-chat", // 设置默认模型
+		token:       token,
+		baseURL:     "https://api.deepseek.com",
+		httpClient:  httpClient,
+		model:       "deepseek-chat", // 设置默认模型
+		temperature: 0,               // 设置默认温度
 	}
 
 	for _, opt := range options {
@@ -174,7 +183,7 @@ type JSONStructureConfig struct {
 	JsonSchema        string // JSON Schema
 }
 
-func (c *JSONStructureConfig) SetExampleOutput(example interface{}) error {
+func (c *JSONStructureConfig) SetExampleOutput(example any) error {
 	jsonBytes, err := json.MarshalIndent(example, "", "  ")
 	if err != nil {
 		return err
@@ -185,11 +194,11 @@ func (c *JSONStructureConfig) SetExampleOutput(example interface{}) error {
 
 // FormatSystemPrompt 将配置格式化为完整的系统提示
 func (c *JSONStructureConfig) FormatSystemPrompt() string {
-	prompt := fmt.Sprintf("%s\n\nEXAMPLE INPUT:\n%s\n\nEXAMPLE JSON OUTPUT:\n%s ",
+	prompt := fmt.Sprintf("%s\n\nEXAMPLE INPUT:\n%s\n\nEXAMPLE JSON OUTPUT:\n```json\n%s\n```",
 		c.SystemPrompt, c.ExampleInput, c.ExampleJSONOutput)
-	if c.JsonSchema != "" {
-		prompt += fmt.Sprintf("\n\nJSON SCHEMA:\n%s", c.JsonSchema)
-	}
+	// if c.JsonSchema != "" {
+	// 	prompt += fmt.Sprintf("\n\nJSON SCHEMA:\n```json\n%s\n```", c.JsonSchema)
+	// }
 	return prompt
 }
 
@@ -229,6 +238,10 @@ func (c *Client) CreateJSONStructuredCompletion(
 		},
 	}
 
+	if req.Temperature == 0 {
+		req.Temperature = c.temperature // 使用客户端默认温度
+	}
+
 	// 发送请求并直接返回响应
 	return c.CreateChatCompletion(req)
 }
@@ -253,6 +266,10 @@ func (c *Client) SimpleChat(prompt string) (string, error) {
 	req := &ChatCompletionRequest{
 		Messages: messages,
 		Model:    c.model,
+	}
+
+	if req.Temperature == 0 {
+		req.Temperature = c.temperature // 使用客户端默认温度
 	}
 
 	// 调用API
