@@ -108,7 +108,7 @@ func (c *rawCrawler) Request(url string, payload string, method string, header m
 		}
 	}
 
-	if res.StatusCode != 200 {
+	if res.StatusCode >= 300 || res.StatusCode < 200 {
 		return nil, fmt.Errorf("status code error: %d %s and body is: %s", res.StatusCode, res.Status, string(body))
 	}
 	return body, nil
