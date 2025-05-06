@@ -109,6 +109,7 @@ func (c *Chat) SendSchemaMessage(
 		Role:    "user",
 		Content: userMessage,
 	})
+	defer c.ClearMessages()
 
 	// Prepare the request schema Schema
 	payload := SchemaPayload{
