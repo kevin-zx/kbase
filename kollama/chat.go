@@ -302,6 +302,96 @@ func (c *Chat) MergeMessages(messages []ChatMessage) (*ChatMessage, error) {
 	return &message, nil
 }
 
+// SendSchemaMessageStream sends a schema message with streaming response and checks for max size
+func (c *Chat) SendSchemaMessageStream(
+	schema *jsonschema.Schema,
+	config JSONStructureConfig,
+	userMessage string,
+	maxSize int,
+) (*ChatMessage, error) {
+	c.Messages = append(c.Messages, ChatMessage{
+		Role:    "system",
+		Content: config.FormatSystemPrompt(),
+	})
+
+	c.Messages = append(c.Messages, ChatMessage{
+		Role:    "user",
+		Content: userMessage,
+	})
+	defer c.ClearMessages()
+
+	// Prepare the request schema with streaming
+	payload := SchemaPayload{
+		Model:    c.Model,
+		Messages: c.Messages,
+		Stream:   true, // Enable streaming
+		Format:   schema,
+	}
+
+	// Convert payload to JSON
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal payload: %v", err)
+	}
+
+	// Send the HTTP POST request
+	resp, err := http.Post("http://localhost:11434/api/chat", "application/json", bytes.NewBuffer(payloadBytes))
+	if err != nil {
+		return nil, fmt.Errorf("failed to send POST request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Prepare to read the streaming response
+	reader := bufio.NewReader(resp.Body)
+	var streamMessages []ChatMessage
+
+	for {
+		// Read until a newline character
+		line, err := reader.ReadBytes('\n')
+		if err != nil {
+			if err == io.EOF {
+				break // Finished reading the stream
+			}
+			return nil, fmt.Errorf("failed to read stream: %v", err)
+		}
+
+		// Ignore empty lines
+		if len(bytes.TrimSpace(line)) == 0 {
+			continue
+		}
+
+		// Decode the streamed JSON object
+		var chatResponse ChatResponse
+		err = json.Unmarshal(line, &chatResponse)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal stream chunk: %v", err)
+		}
+
+		// Append the message to the result
+		streamMessages = append(streamMessages, chatResponse.Message)
+
+		// Check if this was the final message in the stream
+		if chatResponse.Done {
+			break
+		}
+
+		// Check max size limit
+		maxSize--
+		if maxSize <= 0 {
+			return nil, fmt.Errorf("stream message size exceeds limit")
+		}
+	}
+
+	// Merge all streamed messages
+	m, err := c.MergeMessages(streamMessages)
+	if err != nil {
+		return nil, fmt.Errorf("failed to merge messages: %v", err)
+	}
+	c.Messages = append(c.Messages, *m)
+
+	return m, nil
+}
+
 // JSONStructureConfig 封装JSON结构化输出的配置
 type JSONStructureConfig struct {
 	SystemPrompt      string // 系统提示内容，描述输出要求
