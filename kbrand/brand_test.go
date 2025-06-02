@@ -1,6 +1,7 @@
 package kbrand
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 )
@@ -14,6 +15,18 @@ func TestParseBrand(t *testing.T) {
 		args args
 		want Brand
 	}{
+		// 阿飞和巴弟（Alfie&Buddy）
+		{
+			name: "阿飞和巴弟（Alfie&Buddy）",
+			args: args{
+				raw: "阿飞和巴弟（Alfie&Buddy）",
+			},
+			want: Brand{
+				Raw: "阿飞和巴弟（Alfie&Buddy）",
+				EN:  "Alfie&Buddy",
+				CN:  "阿飞和巴弟",
+			},
+		},
 		// "Apple 苹果",
 		{
 			name: "Apple 苹果",
@@ -101,7 +114,9 @@ func TestParseBrand(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := ParseBrand(tt.args.raw); !reflect.DeepEqual(got, tt.want) {
+			got := ParseBrand(tt.args.raw)
+			fmt.Printf("got: %+v\n", got)
+			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ParseBrand() = %v, want %v", got, tt.want)
 			}
 		})
