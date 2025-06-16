@@ -11,12 +11,17 @@ import (
 type OllamaGen interface {
 	Generate(prompt string) (string, error)
 	SetModel(model string)
+	GetModel() string
 	SetStream(stream bool)
 }
 
 type OllamaImpl struct {
 	Model  string
 	Stream bool
+}
+
+func (o *OllamaImpl) GetModel() string {
+	return o.Model
 }
 
 func (o *OllamaImpl) Generate(prompt string) (string, error) {

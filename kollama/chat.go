@@ -27,6 +27,18 @@ type Chat struct {
 	SystemPrompt string        `json:"-"` // System prompt to add at the beginning of each conversation
 }
 
+// GetModel returns the model used for the chat
+func (c *Chat) GetModel() string {
+	return c.Model
+}
+
+// SetModel sets the model for the chat
+func (c *Chat) SetModel(model string) {
+	if model != "" {
+		c.Model = model
+	}
+}
+
 // clear messages
 func (c *Chat) ClearMessages() {
 	c.Messages = []ChatMessage{}
