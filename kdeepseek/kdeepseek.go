@@ -24,11 +24,8 @@ func (c *Client) SetModel(model string) {
 	c.model = model
 }
 
-// getModel 获取当前使用的模型
-func (c *Client) getModel() string {
-	if c.model == "" {
-		return "deepseek-chat" // 如果未设置模型，返回默认模型
-	}
+// GetModel 获取当前使用的模型
+func (c *Client) GetModel() string {
 	return c.model
 }
 
