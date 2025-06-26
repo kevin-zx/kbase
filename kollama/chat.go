@@ -25,6 +25,8 @@ type Chat struct {
 	Stream       bool          `json:"stream"` // Controls whether we use streaming or not
 	Format       *Format       `json:"format"`
 	SystemPrompt string        `json:"-"` // System prompt to add at the beginning of each conversation
+	Host         string        `json:"-"` // API服务主机地址，默认"localhost"
+	Port         string        `json:"-"` // API服务端口号，默认"11434"
 }
 
 // GetModel returns the model used for the chat
@@ -66,13 +68,40 @@ func NewChat(model string, format *Format) *Chat {
 		Messages:     []ChatMessage{},
 		Stream:       false,
 		Format:       format,
-		SystemPrompt: "", // Default to empty string
+		SystemPrompt: "",          // Default to empty string
+		Host:         "localhost", // 默认host
+		Port:         "11434",     // 默认port
 	}
 }
 
 // SetSystemPrompt sets the system prompt to be used in conversations
 func (c *Chat) SetSystemPrompt(prompt string) {
 	c.SystemPrompt = prompt
+}
+
+// SetHost 设置API服务主机地址
+// 如果host为空则使用默认值"localhost"
+func (c *Chat) SetHost(host string) {
+	if host != "" {
+		c.Host = host
+	} else {
+		c.Host = "localhost"
+	}
+}
+
+// SetPort 设置API服务端口号
+// 如果port为空则使用默认值"11434"
+func (c *Chat) SetPort(port string) {
+	if port != "" {
+		c.Port = port
+	} else {
+		c.Port = "11434"
+	}
+}
+
+// apiURL 生成完整的API请求URL
+func (c *Chat) apiURL() string {
+	return fmt.Sprintf("http://%s:%s/api/chat", c.Host, c.Port)
 }
 
 // prepareMessagesForAPI prepares messages for API call, adding system prompt if set
@@ -137,7 +166,7 @@ func (c *Chat) SendSchemaMessage(
 	}
 
 	// Send the HTTP POST request
-	resp, err := http.Post("http://localhost:11434/api/chat", "application/json", bytes.NewBuffer(payloadBytes))
+	resp, err := http.Post(c.apiURL(), "application/json", bytes.NewBuffer(payloadBytes))
 	if err != nil {
 		return ChatMessage{}, fmt.Errorf("failed to send POST request: %v", err)
 	}
@@ -187,7 +216,7 @@ func (c *Chat) SendMessage(userMessage string) (ChatMessage, error) {
 	}
 
 	// Send the HTTP POST request
-	resp, err := http.Post("http://localhost:11434/api/chat", "application/json", bytes.NewBuffer(payloadBytes))
+	resp, err := http.Post(c.apiURL(), "application/json", bytes.NewBuffer(payloadBytes))
 	if err != nil {
 		return ChatMessage{}, fmt.Errorf("failed to send POST request: %v", err)
 	}
@@ -240,7 +269,7 @@ func (c *Chat) SendStreamMessage(userMessage string) (*ChatMessage, error) {
 	}
 
 	// Send the HTTP POST request
-	resp, err := http.Post("http://localhost:11434/api/chat", "application/json", bytes.NewBuffer(payloadBytes))
+	resp, err := http.Post(c.apiURL(), "application/json", bytes.NewBuffer(payloadBytes))
 	if err != nil {
 		return nil, fmt.Errorf("failed to send POST request: %v", err)
 	}
@@ -347,7 +376,7 @@ func (c *Chat) SendSchemaMessageStream(
 	}
 
 	// Send the HTTP POST request
-	resp, err := http.Post("http://localhost:11434/api/chat", "application/json", bytes.NewBuffer(payloadBytes))
+	resp, err := http.Post(c.apiURL(), "application/json", bytes.NewBuffer(payloadBytes))
 	if err != nil {
 		return nil, fmt.Errorf("failed to send POST request: %v", err)
 	}
