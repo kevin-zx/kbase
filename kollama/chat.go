@@ -25,8 +25,10 @@ type Chat struct {
 	Stream       bool          `json:"stream"` // Controls whether we use streaming or not
 	Format       *Format       `json:"format"`
 	SystemPrompt string        `json:"-"` // System prompt to add at the beginning of each conversation
-	Host         string        `json:"-"` // API服务主机地址，默认"localhost"
-	Port         string        `json:"-"` // API服务端口号，默认"11434"
+	// Host         string        `json:"-"` // API服务主机地址，默认"localhost"
+	// Port         string        `json:"-"` // API服务端口号，默认"11434"
+	// Protocol     string        `json:"-"` // API服务协议，默认"http"
+	APIURL string `json:"-"` // 完整的API请求URL
 }
 
 // GetModel returns the model used for the chat
@@ -58,20 +60,96 @@ type ChatResponse struct {
 	EvalDuration  int64       `json:"eval_duration"`
 }
 
+type ChatOption func(*Chat)
+
+func WithModel(model string) ChatOption {
+	return func(c *Chat) {
+		if model != "" {
+			c.Model = model
+		} else {
+			c.Model = "qwen2.5:7B" // Default model if none
+		}
+	}
+}
+func WithStream(stream bool) ChatOption {
+	return func(c *Chat) {
+		c.Stream = stream
+	}
+}
+
+// WithFormat sets the format for the chat
+func WithFormat(format *Format) ChatOption {
+	return func(c *Chat) {
+		if format != nil {
+			c.Format = format
+		} else {
+			c.Format = &Format{
+				Type:       "object",
+				Properties: make(map[string]Property),
+			} // Default format if none provided
+		}
+	}
+}
+
+// WithSystemPrompt sets the system prompt for the chat
+func WithSystemPrompt(prompt string) ChatOption {
+	return func(c *Chat) {
+		if prompt != "" {
+			c.SystemPrompt = prompt
+		} else {
+			c.SystemPrompt = "" // Default to empty string if none provided
+		}
+	}
+}
+
+// WithAPIURL sets the API URL for the chat
+func WithAPIURL(apiURL string) ChatOption {
+	return func(c *Chat) {
+		if apiURL != "" {
+			c.APIURL = apiURL
+		} else {
+			c.APIURL = "http://localhost:11434/api/chat" // Default API URL if none provided
+		}
+	}
+}
+
 // NewChat initializes a new chat session with the provided model and format
-func NewChat(model string, format *Format) *Chat {
+func NewChat(model string, format *Format, chatOpts ...ChatOption) *Chat {
 	if model == "" {
 		model = "qwen2.5:7B"
 	}
-	return &Chat{
+	c := &Chat{
 		Model:        model,
 		Messages:     []ChatMessage{},
 		Stream:       false,
 		Format:       format,
-		SystemPrompt: "",          // Default to empty string
-		Host:         "localhost", // 默认host
-		Port:         "11434",     // 默认port
+		SystemPrompt: "",                                // Default to empty string
+		APIURL:       "http://localhost:11434/api/chat", // Default API URL
+		// Host:         "localhost", // 默认host
+		// Port:         "11434",     // 默认port
+		// Protocol:     "http",      // 默认协议
 	}
+	for _, opt := range chatOpts {
+		opt(c)
+	}
+	return c
+}
+
+// NewChatWithOptions initializes a new chat session with the provided model, format, and options
+func NewChatWithOptions(opts ...ChatOption) *Chat {
+	defaultChat := &Chat{
+		Model:        "qwen2.5:7B",
+		Messages:     []ChatMessage{},
+		Stream:       false,
+		Format:       nil,
+		SystemPrompt: "",                                // Default to empty string
+		APIURL:       "http://localhost:11434/api/chat", // Default API URL
+	}
+
+	for _, opt := range opts {
+		opt(defaultChat)
+	}
+	return defaultChat
 }
 
 // SetSystemPrompt sets the system prompt to be used in conversations
@@ -79,30 +157,40 @@ func (c *Chat) SetSystemPrompt(prompt string) {
 	c.SystemPrompt = prompt
 }
 
-// SetHost 设置API服务主机地址
-// 如果host为空则使用默认值"localhost"
-func (c *Chat) SetHost(host string) {
-	if host != "" {
-		c.Host = host
+// SetAPIURL sets the API URL for the chat service
+func (c *Chat) SetAPIURL(apiURL string) {
+	if apiURL != "" {
+		c.APIURL = apiURL
 	} else {
-		c.Host = "localhost"
+		c.APIURL = "http://localhost:11434/api/chat" // Default API URL
 	}
+
 }
 
-// SetPort 设置API服务端口号
-// 如果port为空则使用默认值"11434"
-func (c *Chat) SetPort(port string) {
-	if port != "" {
-		c.Port = port
-	} else {
-		c.Port = "11434"
-	}
-}
+// // SetHost 设置API服务主机地址
+// // 如果host为空则使用默认值"localhost"
+// func (c *Chat) SetHost(host string) {
+// 	if host != "" {
+// 		c.Host = host
+// 	} else {
+// 		c.Host = "localhost"
+// 	}
+// }
 
-// apiURL 生成完整的API请求URL
-func (c *Chat) apiURL() string {
-	return fmt.Sprintf("http://%s:%s/api/chat", c.Host, c.Port)
-}
+// // SetPort 设置API服务端口号
+// // 如果port为空则使用默认值"11434"
+// func (c *Chat) SetPort(port string) {
+// 	if port != "" {
+// 		c.Port = port
+// 	} else {
+// 		c.Port = "11434"
+// 	}
+// }
+
+// // apiURL 生成完整的API请求URL
+// func (c *Chat) apiURL() string {
+// 	return fmt.Sprintf("http://%s:%s/api/chat", c.Host, c.Port)
+// }
 
 // prepareMessagesForAPI prepares messages for API call, adding system prompt if set
 func (c *Chat) prepareMessagesForAPI() {
@@ -166,7 +254,7 @@ func (c *Chat) SendSchemaMessage(
 	}
 
 	// Send the HTTP POST request
-	resp, err := http.Post(c.apiURL(), "application/json", bytes.NewBuffer(payloadBytes))
+	resp, err := http.Post(c.APIURL, "application/json", bytes.NewBuffer(payloadBytes))
 	if err != nil {
 		return ChatMessage{}, fmt.Errorf("failed to send POST request: %v", err)
 	}
@@ -216,7 +304,7 @@ func (c *Chat) SendMessage(userMessage string) (ChatMessage, error) {
 	}
 
 	// Send the HTTP POST request
-	resp, err := http.Post(c.apiURL(), "application/json", bytes.NewBuffer(payloadBytes))
+	resp, err := http.Post(c.APIURL, "application/json", bytes.NewBuffer(payloadBytes))
 	if err != nil {
 		return ChatMessage{}, fmt.Errorf("failed to send POST request: %v", err)
 	}
@@ -269,7 +357,7 @@ func (c *Chat) SendStreamMessage(userMessage string) (*ChatMessage, error) {
 	}
 
 	// Send the HTTP POST request
-	resp, err := http.Post(c.apiURL(), "application/json", bytes.NewBuffer(payloadBytes))
+	resp, err := http.Post(c.APIURL, "application/json", bytes.NewBuffer(payloadBytes))
 	if err != nil {
 		return nil, fmt.Errorf("failed to send POST request: %v", err)
 	}
@@ -376,7 +464,7 @@ func (c *Chat) SendSchemaMessageStream(
 	}
 
 	// Send the HTTP POST request
-	resp, err := http.Post(c.apiURL(), "application/json", bytes.NewBuffer(payloadBytes))
+	resp, err := http.Post(c.APIURL, "application/json", bytes.NewBuffer(payloadBytes))
 	if err != nil {
 		return nil, fmt.Errorf("failed to send POST request: %v", err)
 	}
