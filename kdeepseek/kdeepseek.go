@@ -49,7 +49,7 @@ func NewClient(token string, options ...ClientOption) *Client {
 		baseURL:     "https://api.deepseek.com",
 		httpClient:  httpClient,
 		model:       "deepseek-chat", // 设置默认模型
-		temperature: 0,               // 设置默认温度
+		temperature: 1.5,             // 设置默认温度
 	}
 
 	for _, opt := range options {
