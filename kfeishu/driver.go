@@ -1,4 +1,4 @@
-package feishu
+package kfeishu
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/kevin-zx/kbase/kfeishu/token"
 	larkcore "github.com/larksuite/oapi-sdk-go/v3/core"
 	larkdrive "github.com/larksuite/oapi-sdk-go/v3/service/drive/v1"
 	"github.com/pkg/errors"
@@ -21,9 +22,9 @@ type feishuDriverImpl struct {
 	feishuClient
 }
 
-func NewFeishuDriverClient(appID, appSecret string) FeishuDriverClient {
+func NewFeishuDriverClient(ts token.TokenService, appID, appSecret string) FeishuDriverClient {
 	return &feishuDriverImpl{
-		feishuClient: NewFeishuClient(appID, appSecret),
+		feishuClient: NewFeishuClient(ts, appID, appSecret),
 	}
 }
 
