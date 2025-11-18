@@ -19,7 +19,7 @@ func NewSqliteCache(dbfile string, prefix string) (*sqliteCache, error) {
 	conectFmt := "file:%s?cache=shared&mode=rwc"
 	db, err := sql.Open("sqlite3", fmt.Sprintf(conectFmt, dbfile))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ksqlite file: %s, got a error: %v", dbfile, err)
 	}
 	tableName := prefix + "_cache"
 
@@ -29,7 +29,7 @@ func NewSqliteCache(dbfile string, prefix string) (*sqliteCache, error) {
 	}
 	err = sc.createCacheTable()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ksqlite file: %s, got a error: %v", dbfile, err)
 	}
 	return sc, nil
 }
