@@ -321,8 +321,7 @@ func (f *FeishuAppTableClient) InsertRecords(records []map[string]interface{}) e
 }
 
 // check fileds is valid
-func (f *FeishuAppTableClient) CheckFields(fields []*larkbitable.AppTableFieldForList, record map[string]interface{}) error {
-
+func (f *FeishuAppTableClient) CheckFields(fields []*larkbitable.AppTableFieldForList, record map[string]any) error {
 	for key := range record {
 		found := false
 		for _, field := range fields {
@@ -417,6 +416,7 @@ func (f *FeishuAppTableClient) Query(filter larkbitable.FilterInfo, pageSize int
 		AppToken(f.AppToken).
 		TableId(f.TableID).
 		PageSize(pageSize).
+		PageToken(pageToken).
 		Body(
 			larkbitable.NewSearchAppTableRecordReqBodyBuilder().
 				Filter(&filter).
@@ -435,36 +435,43 @@ func (f *FeishuAppTableClient) Query(filter larkbitable.FilterInfo, pageSize int
 	}
 
 	if !resp.Success() {
-		return nil, "", fmt.Errorf("code: %d, msg: %s, requestId: %s", resp.Code, resp.Msg, resp.RequestId())
+		return nil, "", fmt.Errorf("code: %d, msg: %s, requestId: %s, rawBody: %s", resp.Code, resp.Msg, resp.RequestId(), string(resp.ApiResp.RawBody))
 	}
 
-	return resp.Data.Items, *resp.Data.PageToken, nil
+	if resp.Data == nil || resp.Data.Items == nil {
+		return nil, "", nil
+	}
+	token := ""
+	if resp.Data.PageToken != nil {
+		token = *resp.Data.PageToken
+	}
+	return resp.Data.Items, token, nil
 }
 
-// qeury with max page size
+// QueryAll 根据指定的过滤条件，分页查询所有表记录。
+// filter 表示过滤条件，pageSize 为每页记录数，maxPageSize 为最大分页数。
+// 返回所有查询到的表记录和可能的错误信息。
 func (f *FeishuAppTableClient) QueryAll(filter larkbitable.FilterInfo, pageSize, maxPageSize int) ([]*larkbitable.AppTableRecord, error) {
 
 	pt := ""
 	records := make([]*larkbitable.AppTableRecord, 0)
 	for page := 1; page <= maxPageSize; page++ {
 
-		records, nextPageToken, err := f.Query(filter, pageSize, pt)
+		pageRecords, nextPageToken, err := f.Query(filter, pageSize, pt)
 		if err != nil {
 			return nil, err
 		}
 
-		if len(records) == 0 {
+		if len(pageRecords) == 0 {
 			break
 		}
 
 		pt = nextPageToken
-		for _, record := range records {
-			records = append(records, record)
-		}
+		records = append(records, pageRecords...)
 		if pt == "" {
 			break
 		}
-		if len(records) < pageSize {
+		if len(pageRecords) < pageSize {
 			break
 		}
 	}
