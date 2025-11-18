@@ -76,7 +76,7 @@ func ConvertInterface2TypeValue(data any, typeValue int) (any, error) {
 		return ConvertData2Link(data)
 	case 4, 18:
 		// 将interface{}转换为[]string
-		return convertData2Array(data)
+		return ConvertData2Array(data)
 	case 7:
 		// 将interface{}转换为bool
 		return ConvertData2Bool(data)
@@ -373,7 +373,7 @@ func covnertDate2UnixTime(data any) (int64, error) {
 	}
 }
 
-func convertData2Array(i any) ([]string, error) {
+func ConvertData2Array(i any) ([]string, error) {
 	if i == nil {
 		return []string{}, nil
 	}
