@@ -43,6 +43,7 @@ func NewSqliteCacheWithTTL(dbfile string, prefix string, defaultTTL time.Duratio
 }
 
 func (c *sqliteCache) createCacheTable() error {
+	// 创建表（如果不存在），包含完整的列定义
 	_, err := c.db.Exec(
 		"CREATE TABLE IF NOT EXISTS " + c.tableName + " (key TEXT PRIMARY KEY, value BLOB, created_time DATETIME, expires_at DATETIME)",
 	)
@@ -50,7 +51,33 @@ func (c *sqliteCache) createCacheTable() error {
 		return err
 	}
 
-	return err
+	// 检查 expires_at 列是否存在，如果不存在则添加
+	var count int
+	err = c.db.QueryRow(
+		"SELECT COUNT(*) FROM pragma_table_info(?) WHERE name='expires_at'",
+		c.tableName,
+	).Scan(&count)
+
+	if err != nil {
+		// 如果查询失败，可能是旧版本的 SQLite，我们尝试直接添加列
+		_, err = c.db.Exec(
+			"ALTER TABLE " + c.tableName + " ADD COLUMN expires_at DATETIME",
+		)
+		// 忽略错误，因为列可能已经存在
+		return nil
+	}
+
+	if count == 0 {
+		// 添加 expires_at 列
+		_, err = c.db.Exec(
+			"ALTER TABLE " + c.tableName + " ADD COLUMN expires_at DATETIME",
+		)
+		if err != nil {
+			return fmt.Errorf("添加 expires_at 列失败: %v", err)
+		}
+	}
+
+	return nil
 }
 
 func (c *sqliteCache) Get(key string) ([]byte, error) {
