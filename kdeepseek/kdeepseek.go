@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"time"
 )
@@ -229,8 +228,8 @@ func (c *Client) CreateJSONStructuredCompletion(
 		{Role: "user", Content: userPrompt},
 	}
 
-	log.Printf("System Prompt: %s\n", fullSystemPrompt)
-	log.Printf("User Prompt: %s\n", userPrompt)
+	// log.Printf("System Prompt: %s\n", fullSystemPrompt)
+	// log.Printf("User Prompt: %s\n", userPrompt)
 
 	// 如果未指定模型，使用客户端默认模型
 	modelToUse := model
