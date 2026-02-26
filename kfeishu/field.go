@@ -81,7 +81,10 @@ func ConvertInterface2TypeValue(data any, typeValue int) (any, error) {
 		// 将interface{}转换为bool
 		return ConvertData2Bool(data)
 	case 5, 1001, 1002:
-		return covnertDate2UnixTime(data)
+		return CovnertDate2UnixTime(data)
+	case 11:
+		// 将interface{}转换为FeishuUser
+		return ConvertData2User(data)
 	default:
 		return nil, fmt.Errorf("unsupported type: %d", typeValue)
 	}
@@ -338,7 +341,7 @@ func ConvertData2String(data any) string {
 	return fmt.Sprintf("%v", data)
 }
 
-func covnertDate2UnixTime(data any) (int64, error) {
+func CovnertDate2UnixTime(data any) (int64, error) {
 	switch v := data.(type) {
 	case time.Time:
 		return v.Unix() * 1000, nil
@@ -367,10 +370,99 @@ func covnertDate2UnixTime(data any) (int64, error) {
 		if len(v) == 0 {
 			return 0, nil
 		}
-		return covnertDate2UnixTime(v[0])
+		return CovnertDate2UnixTime(v[0])
 	default:
 		return 0, fmt.Errorf("unsupported date type: %T", v)
 	}
+}
+
+//	{
+//	  "avatar_url": "https://s1-imfile.feishucdn.com/static-resource/v1/v3_00g2_058610dc-f65c-40c5-afac-46e83919630g~?image_size=72x72&cut_type=default-face&quality=&format=jpeg&sticker_format=.webp",
+//	  "email": "amandahuang@bytedance.com",
+//	  "en_name": "Amanda Huang",
+//	  "id": "ou_8240099442cf5da49f04f4bf8f8abcef",
+//	  "name": "黄泡泡"
+//	}
+type FeishuUser struct {
+	AvatarURL string `json:"avatar_url"`
+	Email     string `json:"email"`
+	EnName    string `json:"en_name"`
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+}
+
+// ConvertData2User 将data转换为FeishuUser
+func ConvertData2User(data any) (*FeishuUser, error) {
+	if data == nil {
+		return nil, nil
+	}
+
+	// 处理嵌套的API响应格式
+	if m, ok := data.(map[string]any); ok {
+		// 如果包含 type 和 value，递归处理
+		if t, ok := m["type"].(float64); ok && t == 11 {
+			return ConvertData2User(m["value"])
+		}
+
+		// 如果包含 data 字段，递归处理
+		if d, ok := m["data"]; ok {
+			return ConvertData2User(d)
+		}
+
+		// 直接映射字段
+		user := &FeishuUser{}
+
+		// 处理 avatar_url 字段
+		if avatarURL, ok := m["avatar_url"].(string); ok {
+			user.AvatarURL = avatarURL
+		} else if avatarURL, ok := m["avatarUrl"].(string); ok {
+			user.AvatarURL = avatarURL
+		}
+
+		// 处理 email 字段
+		if email, ok := m["email"].(string); ok {
+			user.Email = email
+		}
+
+		// 处理 en_name 字段
+		if enName, ok := m["en_name"].(string); ok {
+			user.EnName = enName
+		} else if enName, ok := m["enName"].(string); ok {
+			user.EnName = enName
+		}
+
+		// 处理 id 字段
+		if id, ok := m["id"].(string); ok {
+			user.ID = id
+		} else if id, ok := m["user_id"].(string); ok {
+			user.ID = id
+		}
+
+		// 处理 name 字段
+		if name, ok := m["name"].(string); ok {
+			user.Name = name
+		}
+
+		return user, nil
+	}
+
+	// 处理数组（多选人员）
+	if arr, ok := data.([]any); ok {
+		if len(arr) == 0 {
+			return nil, nil
+		}
+		// 取第一个用户
+		return ConvertData2User(arr[0])
+	}
+
+	// 处理字符串类型（可能是用户ID）
+	if str, ok := data.(string); ok {
+		return &FeishuUser{
+			ID: str,
+		}, nil
+	}
+
+	return nil, fmt.Errorf("unsupported user data type: %T", data)
 }
 
 func ConvertData2Array(i any) ([]string, error) {
