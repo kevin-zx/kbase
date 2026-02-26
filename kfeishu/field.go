@@ -81,7 +81,7 @@ func ConvertInterface2TypeValue(data any, typeValue int) (any, error) {
 		// 将interface{}转换为bool
 		return ConvertData2Bool(data)
 	case 5, 1001, 1002:
-		return CovnertDate2UnixTime(data)
+		return ConvertData2Unix(data)
 	case 11:
 		// 将interface{}转换为FeishuUser
 		return ConvertData2User(data)
@@ -341,7 +341,7 @@ func ConvertData2String(data any) string {
 	return fmt.Sprintf("%v", data)
 }
 
-func CovnertDate2UnixTime(data any) (int64, error) {
+func ConvertData2Unix(data any) (int64, error) {
 	switch v := data.(type) {
 	case time.Time:
 		return v.Unix() * 1000, nil
@@ -370,7 +370,7 @@ func CovnertDate2UnixTime(data any) (int64, error) {
 		if len(v) == 0 {
 			return 0, nil
 		}
-		return CovnertDate2UnixTime(v[0])
+		return ConvertData2Unix(v[0])
 	default:
 		return 0, fmt.Errorf("unsupported date type: %T", v)
 	}
