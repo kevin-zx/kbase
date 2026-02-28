@@ -16,6 +16,8 @@ type FeishuFilesClient interface {
 	CreateFolder(name, folderToken string) (*CreateFolderResponse, error)
 	// ListFiles 获取文件夹内的文件清单
 	ListFiles(folderToken string, pageSize int, pageToken, orderBy, direction, userIdType string) (*ListFilesResponse, error)
+	// DeleteFile 删除文件或文件夹
+	DeleteFile(fileToken, fileType string) (*DeleteFileResponse, error)
 }
 
 // feishuFilesImpl 飞书文件/文件夹操作客户端实现
@@ -43,6 +45,11 @@ type CreateFolderResponse struct {
 type ListFilesResponse struct {
 	Files   []*FileInfo `json:"files"`
 	HasMore bool        `json:"has_more"`
+}
+
+// DeleteFileResponse 删除文件响应
+type DeleteFileResponse struct {
+	TaskID string `json:"task_id"`
 }
 
 // FileInfo 文件信息
@@ -211,6 +218,45 @@ func (f *feishuFilesImpl) ListFiles(folderToken string, pageSize int, pageToken,
 
 			result.Files = append(result.Files, fileInfo)
 		}
+	}
+
+	return result, nil
+}
+
+// DeleteFile 删除文件或文件夹
+// fileToken: 需要删除的文件或文件夹 token
+// fileType: 被删除文件的类型，可选值：file, docx, bitable, folder, doc, sheet, mindnote, shortcut, slides
+// 返回删除响应，删除文件夹时返回异步任务ID，或者错误
+func (f *feishuFilesImpl) DeleteFile(fileToken, fileType string) (*DeleteFileResponse, error) {
+	// 构建请求
+	req := larkdrive.NewDeleteFileReqBuilder().
+		FileToken(fileToken).
+		Type(fileType).
+		Build()
+
+	// 获取用户访问令牌
+	ua, err := f.feishuClient.GetUserAccessToken()
+	if err != nil {
+		return nil, errors.Wrap(err, "获取用户访问令牌失败")
+	}
+
+	// 发起请求
+	resp, err := f.client.Drive.V1.File.Delete(context.Background(), req, larkcore.WithUserAccessToken(ua))
+	if err != nil {
+		return nil, errors.Wrap(err, "删除文件请求失败")
+	}
+
+	// 检查响应是否成功
+	if !resp.Success() {
+		return nil, fmt.Errorf("删除文件失败: code=%d, msg=%s, requestId=%s",
+			resp.Code, resp.Msg, resp.RequestId())
+	}
+
+	// 构建返回结果
+	result := &DeleteFileResponse{}
+
+	if resp.Data != nil && resp.Data.TaskId != nil {
+		result.TaskID = *resp.Data.TaskId
 	}
 
 	return result, nil
