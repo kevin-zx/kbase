@@ -51,7 +51,10 @@ func (f *feishuClient) GetUserAccessToken() (string, error) {
 		return token.AccessToken, nil
 	}
 	if token != nil && token.IsExpired() && !token.IsRefreshTokenExpired() {
-		return f.RefreshUserAccessToken(*token)
+		tk, err := f.RefreshUserAccessToken(*token)
+		if err == nil {
+			return tk, nil
+		}
 	}
 
 	authCode, err := f.ts.GetAuthCode()
