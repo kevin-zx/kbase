@@ -29,6 +29,15 @@ func (m *ChatMessage) AddImages(images []string) {
 	m.Images = append(m.Images, images...)
 }
 
+// NewUserMessage creates a user message with optional images
+func NewUserMessage(content string, images ...string) ChatMessage {
+	return ChatMessage{
+		Role:    "user",
+		Content: content,
+		Images:  images,
+	}
+}
+
 // Chat represents the entire conversation with the API and handles message sending
 type Chat struct {
 	Model        string        `json:"model"`
@@ -233,11 +242,11 @@ func GenerateSchema[T any]() *jsonschema.Schema {
 	return schema
 }
 
-// send schema message
-func (c *Chat) SendSchemaMessage(
+// SendSchemaChatMessage sends a schema message with a ChatMessage (supports images)
+func (c *Chat) SendSchemaChatMessage(
 	schema *jsonschema.Schema,
 	config JSONStructureConfig,
-	userMessage string,
+	msg ChatMessage,
 ) (ChatMessage, error) {
 
 	c.Messages = append(c.Messages, ChatMessage{
@@ -245,10 +254,7 @@ func (c *Chat) SendSchemaMessage(
 		Content: config.FormatSystemPrompt(),
 	})
 
-	c.Messages = append(c.Messages, ChatMessage{
-		Role:    "user",
-		Content: userMessage,
-	})
+	c.Messages = append(c.Messages, msg)
 	defer c.ClearMessages()
 
 	// Prepare the request schema Schema
@@ -284,6 +290,18 @@ func (c *Chat) SendSchemaMessage(
 	return chatResponse.Message, nil
 }
 
+// send schema message
+func (c *Chat) SendSchemaMessage(
+	schema *jsonschema.Schema,
+	config JSONStructureConfig,
+	userMessage string,
+) (ChatMessage, error) {
+	return c.SendSchemaChatMessage(schema, config, ChatMessage{
+		Role:    "user",
+		Content: userMessage,
+	})
+}
+
 type Payload struct {
 	Model    string        `json:"model"`
 	Messages []ChatMessage `json:"messages"`
@@ -291,14 +309,11 @@ type Payload struct {
 	Format   *Format       `json:"format,omitempty"`
 }
 
-// SendMessage sends a user message to the chat API and returns the assistant's response (non-streaming)
-func (c *Chat) SendMessage(userMessage string) (ChatMessage, error) {
+// SendChatMessage sends a ChatMessage to the chat API and returns the assistant's response (non-streaming)
+func (c *Chat) SendChatMessage(msg ChatMessage) (ChatMessage, error) {
 	c.prepareMessagesForAPI()
 	// Append the user's message to the conversation
-	c.Messages = append(c.Messages, ChatMessage{
-		Role:    "user",
-		Content: userMessage,
-	})
+	c.Messages = append(c.Messages, msg)
 
 	// Prepare the request payload
 	payload := Payload{
@@ -332,6 +347,14 @@ func (c *Chat) SendMessage(userMessage string) (ChatMessage, error) {
 	c.Messages = append(c.Messages, chatResponse.Message)
 
 	return chatResponse.Message, nil
+}
+
+// SendMessage sends a user message to the chat API and returns the assistant's response (non-streaming)
+func (c *Chat) SendMessage(userMessage string) (ChatMessage, error) {
+	return c.SendChatMessage(ChatMessage{
+		Role:    "user",
+		Content: userMessage,
+	})
 }
 
 type Format struct {
