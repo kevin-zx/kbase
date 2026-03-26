@@ -14,8 +14,19 @@ import (
 
 // ChatMessage represents a single message in the conversation
 type ChatMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+	Role    string   `json:"role"`
+	Content string   `json:"content"`
+	Images  []string `json:"images,omitempty"` // Base64-encoded images for multimodal models
+}
+
+// AddImage adds a base64-encoded image to the message
+func (m *ChatMessage) AddImage(base64Image string) {
+	m.Images = append(m.Images, base64Image)
+}
+
+// AddImages adds multiple base64-encoded images to the message
+func (m *ChatMessage) AddImages(images []string) {
+	m.Images = append(m.Images, images...)
 }
 
 // Chat represents the entire conversation with the API and handles message sending
