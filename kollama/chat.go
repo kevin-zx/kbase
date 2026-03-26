@@ -3,13 +3,17 @@ package kollama
 import (
 	"bufio"
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/invopop/jsonschema"
+	"github.com/kevin-zx/kbase/kimgd"
 )
 
 // ChatMessage represents a single message in the conversation
@@ -27,6 +31,47 @@ func (m *ChatMessage) AddImage(base64Image string) {
 // AddImages adds multiple base64-encoded images to the message
 func (m *ChatMessage) AddImages(images []string) {
 	m.Images = append(m.Images, images...)
+}
+
+// AddImageFromFile reads an image file from the given path, encodes it as base64,
+// and adds it to the message. Returns an error if the file cannot be read.
+func (m *ChatMessage) AddImageFromFile(filePath string) error {
+	imageData, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to read image file %s: %v", filePath, err)
+	}
+	base64Image := base64.StdEncoding.EncodeToString(imageData)
+	m.Images = append(m.Images, base64Image)
+	return nil
+}
+
+// AddImageFromURL downloads an image from the given URL, encodes it as base64,
+// and adds it to the message. Returns an error if the download or encoding fails.
+func (m *ChatMessage) AddImageFromURL(url string) error {
+	// Create a temporary directory for downloading
+	tempDir := os.TempDir()
+	downloader := kimgd.NewImageDownloader()
+
+	// Download the image to a temporary file
+	filePath, err := downloader.Download(url, tempDir, "kollama")
+	if err != nil {
+		return fmt.Errorf("failed to download image from %s: %v", url, err)
+	}
+
+	// Read the downloaded file and encode as base64
+	imageData, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		// Clean up the temporary file on error
+		os.Remove(filePath)
+		return fmt.Errorf("failed to read downloaded image %s: %v", filePath, err)
+	}
+
+	// Clean up the temporary file
+	defer os.Remove(filePath)
+
+	base64Image := base64.StdEncoding.EncodeToString(imageData)
+	m.Images = append(m.Images, base64Image)
+	return nil
 }
 
 // NewUserMessage creates a user message with optional images
