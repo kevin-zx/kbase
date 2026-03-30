@@ -1,18 +1,21 @@
 module github.com/kevin-zx/kbase
 
-go 1.25
+go 1.25.0
 
 require (
 	github.com/ClickHouse/clickhouse-go v1.5.4
 	github.com/ClickHouse/clickhouse-go/v2 v2.4.3
+	github.com/PuerkitoBio/goquery v1.12.0
 	github.com/gin-gonic/gin v1.11.0
 	github.com/invopop/jsonschema v0.13.0
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/openai/openai-go v0.1.0-alpha.61
-	golang.org/x/text v0.27.0
+	golang.org/x/text v0.35.0
 	gorm.io/gorm v1.31.0
 )
+
+require github.com/andybalholm/cascadia v1.3.3 // indirect
 
 require (
 	github.com/ClickHouse/ch-go v0.51.0 // indirect
@@ -63,12 +66,12 @@ require (
 	go.opentelemetry.io/otel/trace v1.11.2 // indirect
 	go.uber.org/mock v0.5.0 // indirect
 	golang.org/x/arch v0.20.0 // indirect
-	golang.org/x/crypto v0.40.0 // indirect
-	golang.org/x/mod v0.25.0 // indirect
-	golang.org/x/net v0.42.0 // indirect
-	golang.org/x/sync v0.16.0 // indirect
-	golang.org/x/sys v0.35.0 // indirect
-	golang.org/x/tools v0.34.0 // indirect
+	golang.org/x/crypto v0.49.0 // indirect
+	golang.org/x/mod v0.33.0 // indirect
+	golang.org/x/net v0.52.0 // indirect
+	golang.org/x/sync v0.20.0 // indirect
+	golang.org/x/sys v0.42.0 // indirect
+	golang.org/x/tools v0.42.0 // indirect
 	google.golang.org/protobuf v1.36.9 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
