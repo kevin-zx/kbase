@@ -5,6 +5,7 @@ package kdeepseek
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -300,9 +301,25 @@ func (c *Client) CreateChatCompletion(req *ChatCompletionRequest) (*ChatCompleti
 
 // StreamDelta 表示流式响应中每个 chunk 的增量内容。
 type StreamDelta struct {
-	Role             string `json:"role,omitempty"`              // 角色（通常仅在首个 chunk 出现）
-	Content          string `json:"content,omitempty"`           // 增量正文
-	ReasoningContent string `json:"reasoning_content,omitempty"` // 增量推理内容（思考模式）
+	Role             string           `json:"role,omitempty"`              // 角色（通常仅在首个 chunk 出现）
+	Content          string           `json:"content,omitempty"`           // 增量正文
+	ReasoningContent string           `json:"reasoning_content,omitempty"` // 增量推理内容（思考模式）
+	ToolCalls        []StreamToolCall `json:"tool_calls,omitempty"`        // 增量工具调用（流式模式下逐片段到达）
+}
+
+// StreamToolCall 表示流式响应中工具调用的一个增量片段。
+// 与 ToolCall 不同，arguments 会跨多个 chunk 逐步累积，需调用方自行拼接。
+type StreamToolCall struct {
+	Index    *int               `json:"index"`             // 工具调用索引（首个 chunk 携带）
+	ID       string             `json:"id,omitempty"`      // 工具调用 ID
+	Type     string             `json:"type,omitempty"`    // 固定为 "function"
+	Function StreamToolCallFunc `json:"function"`          // 函数名和增量参数
+}
+
+// StreamToolCallFunc 表示流式工具调用的函数信息。
+type StreamToolCallFunc struct {
+	Name      string `json:"name,omitempty"`      // 函数名（仅在首个 chunk 出现）
+	Arguments string `json:"arguments,omitempty"` // 增量参数片段，需拼接
 }
 
 // StreamChoice 表示流式响应中的一个选项。
@@ -325,9 +342,9 @@ type StreamChunk struct {
 
 // CreateChatCompletionStream 发送流式对话补全请求，返回 chunk 通道和错误通道。
 // 调用方通过 range 遍历 chunk 通道获取实时增量，通过 err 通道获取异步错误。
-// 流结束时两个通道都会关闭。
-func (c *Client) CreateChatCompletionStream(req *ChatCompletionRequest) (<-chan StreamChunk, <-chan error) {
-	chunkCh := make(chan StreamChunk)
+// ctx 取消会立即终止流并关闭通道；流正常结束时两个通道也会关闭。
+func (c *Client) CreateChatCompletionStream(ctx context.Context, req *ChatCompletionRequest) (<-chan StreamChunk, <-chan error) {
+	chunkCh := make(chan StreamChunk, 16)
 	errCh := make(chan error, 1)
 
 	go func() {
@@ -350,7 +367,8 @@ func (c *Client) CreateChatCompletionStream(req *ChatCompletionRequest) (<-chan 
 			return
 		}
 
-		httpReq, err := http.NewRequest(
+		httpReq, err := http.NewRequestWithContext(
+			ctx,
 			"POST",
 			fmt.Sprintf("%s/chat/completions", c.baseURL),
 			bytes.NewReader(payload),
@@ -378,7 +396,14 @@ func (c *Client) CreateChatCompletionStream(req *ChatCompletionRequest) (<-chan 
 		}
 
 		scanner := bufio.NewScanner(resp.Body)
+		scanner.Buffer(make([]byte, 0, 256*1024), 256*1024)
 		for scanner.Scan() {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+
 			line := scanner.Text()
 			if !strings.HasPrefix(line, "data: ") {
 				continue
@@ -393,7 +418,12 @@ func (c *Client) CreateChatCompletionStream(req *ChatCompletionRequest) (<-chan 
 			if err := json.Unmarshal([]byte(data), &chunk); err != nil {
 				continue
 			}
-			chunkCh <- chunk
+
+			select {
+			case chunkCh <- chunk:
+			case <-ctx.Done():
+				return
+			}
 		}
 
 		if err := scanner.Err(); err != nil {
@@ -518,8 +548,8 @@ func (c *Client) SimpleChat(prompt string) (string, error) {
 	return resp.Choices[0].Message.Content, nil
 }
 
-// ThinkingChat 类似 SimpleChat，但在思考模式下同时返回回复内容和推理内容。
-// 客户端需通过 WithThinking(true) 启用思考模式，否则与 SimpleChat 行为一致。
+// ThinkingChat 在思考模式下发送消息，同时返回回复内容和推理内容。
+// 无论客户端是否配置了 WithThinking，本方法都会强制启用思考模式。
 func (c *Client) ThinkingChat(prompt string) (content string, reasoning string, err error) {
 	messages := []Message{}
 	if c.system != "" {

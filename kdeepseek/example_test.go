@@ -120,7 +120,9 @@ func Example_toolCallWithThinking() {
 				Location string `json:"location"`
 				Date     string `json:"date"`
 			}
-			json.Unmarshal([]byte(call.Function.Arguments), &args)
+			if err := json.Unmarshal([]byte(call.Function.Arguments), &args); err != nil {
+				return fmt.Sprintf("参数解析错误: %v", err)
+			}
 			return fmt.Sprintf("%s %s: 多云 7~13°C", args.Location, args.Date)
 		}
 		return ""
