@@ -1,5 +1,5 @@
 // Package kdeepseek 提供 DeepSeek API 的 Go 客户端封装。
-// 支持对话补全、流式输出、JSON 结构化输出等功能。
+// 支持对话补全、思考模式、工具调用、流式输出、JSON 结构化输出等功能。
 package kdeepseek
 
 import (
@@ -21,6 +21,7 @@ type Client struct {
 	model       string // 默认模型
 	system      string // 默认系统提示
 	temperature float64
+	thinking    bool // 是否默认启用思考模式
 }
 
 // SetModel 设置当前使用的模型。
@@ -91,12 +92,35 @@ func WithModel(model string) ClientOption {
 	}
 }
 
+// WithThinking 设置是否默认启用思考模式。
+func WithThinking(enabled bool) ClientOption {
+	return func(c *Client) {
+		c.thinking = enabled
+	}
+}
+
 // Message 表示对话中的一条消息。
 // Role 可以是 system、user、assistant 或 tool。
 type Message struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+	Role             string     `json:"role"`
+	Content          string     `json:"content"`
+	ReasoningContent string     `json:"reasoning_content,omitempty"` // 思考模式下的推理内容，有工具调用时必须回传
+	ToolCalls        []ToolCall `json:"tool_calls,omitempty"`        // 工具调用列表
+	ToolCallID       string     `json:"tool_call_id,omitempty"`      // 工具调用 ID（role=tool 时必填）
+	Name             string     `json:"name,omitempty"`              // 可选的参与者名称
 }
+
+// 思考模式常量
+const (
+	ThinkingEnabled  = "enabled"
+	ThinkingDisabled = "disabled"
+)
+
+// 思考强度常量
+const (
+	ReasoningEffortHigh = "high"
+	ReasoningEffortMax  = "max"
+)
 
 // ResponseFormat 指定模型输出格式。
 // Type 可选值：text（默认）、json_object。
@@ -380,6 +404,17 @@ func (c *Client) CreateChatCompletionStream(req *ChatCompletionRequest) (<-chan 
 	return chunkCh, errCh
 }
 
+// ResponseToMessage 将 API 响应的 ResponseMessage 转为可追加到消息列表的 Message。
+// 用于多轮对话拼接，自动携带 reasoning_content 和 tool_calls。
+func ResponseToMessage(msg ResponseMessage) Message {
+	return Message{
+		Role:             msg.Role,
+		Content:          msg.Content,
+		ReasoningContent: msg.ReasoningContent,
+		ToolCalls:        msg.ToolCalls,
+	}
+}
+
 // JSONStructureConfig 封装 JSON 结构化输出的配置。
 // 用于指导模型按照预设的输入输出格式生成符合要求的 JSON 响应。
 type JSONStructureConfig struct {
@@ -442,6 +477,7 @@ func (c *Client) CreateJSONStructuredCompletion(
 
 // SimpleChat 提供简化的对话接口，发送一条用户消息并返回助手回复文本。
 // 如果客户端配置了默认系统提示，会自动添加到消息列表中。
+// 如果客户端配置了思考模式（WithThinking），请求会自动携带 thinking 参数。
 func (c *Client) SimpleChat(prompt string) (string, error) {
 	messages := []Message{}
 	if c.system != "" {
@@ -461,6 +497,11 @@ func (c *Client) SimpleChat(prompt string) (string, error) {
 		Model:    c.model,
 	}
 
+	if c.thinking {
+		req.Thinking = &ThinkingConfig{Type: ThinkingEnabled}
+		req.ReasoningEffort = ReasoningEffortHigh
+	}
+
 	if req.Temperature == 0 {
 		req.Temperature = c.temperature
 	}
@@ -475,4 +516,43 @@ func (c *Client) SimpleChat(prompt string) (string, error) {
 	}
 
 	return resp.Choices[0].Message.Content, nil
+}
+
+// ThinkingChat 类似 SimpleChat，但在思考模式下同时返回回复内容和推理内容。
+// 客户端需通过 WithThinking(true) 启用思考模式，否则与 SimpleChat 行为一致。
+func (c *Client) ThinkingChat(prompt string) (content string, reasoning string, err error) {
+	messages := []Message{}
+	if c.system != "" {
+		messages = append(messages, Message{
+			Role:    "system",
+			Content: c.system,
+		})
+	}
+
+	messages = append(messages, Message{
+		Role:    "user",
+		Content: prompt,
+	})
+
+	req := &ChatCompletionRequest{
+		Messages:       messages,
+		Model:          c.model,
+		Thinking:       &ThinkingConfig{Type: ThinkingEnabled},
+		ReasoningEffort: ReasoningEffortHigh,
+	}
+
+	if req.Temperature == 0 {
+		req.Temperature = c.temperature
+	}
+
+	resp, err := c.CreateChatCompletion(req)
+	if err != nil {
+		return "", "", err
+	}
+
+	if len(resp.Choices) == 0 {
+		return "", "", fmt.Errorf("no response received")
+	}
+
+	return resp.Choices[0].Message.Content, resp.Choices[0].Message.ReasoningContent, nil
 }
