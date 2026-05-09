@@ -2,8 +2,10 @@ package kfeishu
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 
@@ -16,6 +18,40 @@ import (
 type FeishuDriverClient interface {
 	DownloadFile(fileToken string, dstDir, exraInfo string, useFileTokenName bool) (string, error)
 	UploadFile(srcPath string, parentType, parentNode string, extraInfo string) (string, error)
+	SearchDocs(ctx context.Context, req SearchDocsReq) (*SearchDocsResp, error)
+}
+
+type DocsType string
+
+const (
+	DocsTypeDoc      DocsType = "doc"
+	DocsTypeSheet    DocsType = "sheet"
+	DocsTypeSlides   DocsType = "slides"
+	DocsTypeBitable  DocsType = "bitable"
+	DocsTypeMindnote DocsType = "mindnote"
+	DocsTypeFile     DocsType = "file"
+)
+
+type SearchDocsReq struct {
+	SearchKey string     `json:"search_key"`
+	Count     int        `json:"count,omitempty"`
+	Offset    int        `json:"offset,omitempty"`
+	OwnerIDs  []string   `json:"owner_ids,omitempty"`
+	ChatIDs   []string   `json:"chat_ids,omitempty"`
+	DocsTypes []DocsType `json:"docs_types,omitempty"`
+}
+
+type DocsEntity struct {
+	DocsToken string `json:"docs_token"`
+	DocsType  string `json:"docs_type"`
+	Title     string `json:"title"`
+	OwnerID   string `json:"owner_id"`
+}
+
+type SearchDocsResp struct {
+	DocsEntities []DocsEntity `json:"docs_entities"`
+	HasMore      bool         `json:"has_more"`
+	Total        int          `json:"total"`
 }
 
 type feishuDriverImpl struct {
@@ -138,4 +174,35 @@ func (f *feishuDriverImpl) UploadFile(srcPath string, parentType, parentNode str
 		return "", errors.New("empty file token in response")
 	}
 	return *resp.Data.FileToken, nil
+}
+
+// SearchDocs searches cloud documents by keyword.
+func (f *feishuDriverImpl) SearchDocs(ctx context.Context, req SearchDocsReq) (*SearchDocsResp, error) {
+	ua, err := f.feishuClient.GetUserAccessToken()
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := f.client.Do(ctx, &larkcore.ApiReq{
+		HttpMethod:                http.MethodPost,
+		ApiPath:                   "/open-apis/suite/docs-api/search/object",
+		Body:                      req,
+		SupportedAccessTokenTypes: []larkcore.AccessTokenType{larkcore.AccessTokenTypeUser},
+	}, larkcore.WithUserAccessToken(ua))
+	if err != nil {
+		return nil, errors.Wrap(err, "search docs request failed")
+	}
+
+	var apiResp struct {
+		Code int             `json:"code"`
+		Msg  string          `json:"msg"`
+		Data *SearchDocsResp `json:"data"`
+	}
+	if err := json.Unmarshal(resp.RawBody, &apiResp); err != nil {
+		return nil, errors.Wrap(err, "decode search response failed")
+	}
+	if apiResp.Code != 0 {
+		return nil, fmt.Errorf("search docs error: code=%d, msg=%s", apiResp.Code, apiResp.Msg)
+	}
+	return apiResp.Data, nil
 }
