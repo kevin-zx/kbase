@@ -138,13 +138,17 @@ func (f *FeishuAppTableClient) UpdateRecords(records map[string]map[string]any) 
 		// 发起请求
 		resp, err := f.client.Bitable.AppTableRecord.BatchUpdate(context.Background(), req, larkcore.WithUserAccessToken(uat))
 		if err != nil {
-			fmt.Printf("raw body: %s\n", string(resp.ApiResp.RawBody))
+			if resp != nil && resp.ApiResp != nil {
+				fmt.Printf("raw body: %s\n", string(resp.ApiResp.RawBody))
+			}
 			fmt.Printf("%+v", records)
 			return err
 		}
 
 		if !resp.Success() {
-			fmt.Printf("raw body: %s\n", string(resp.ApiResp.RawBody))
+			if resp.ApiResp != nil {
+				fmt.Printf("raw body: %s\n", string(resp.ApiResp.RawBody))
+			}
 			return fmt.Errorf("code: %d, msg: %s, requestId: %s", resp.Code, resp.Msg, resp.RequestId())
 		}
 		return nil
@@ -248,7 +252,9 @@ func (f *FeishuAppTableClient) listRecordsPage(pageSize int, pageToken string) (
 	}
 
 	if !resp.Success() {
-		log.Printf("raw body: %s", string(resp.ApiResp.RawBody))
+		if resp.ApiResp != nil {
+			log.Printf("raw body: %s", string(resp.ApiResp.RawBody))
+		}
 		return nil, fmt.Errorf("code: %d, msg: %s, requestId: %s", resp.Code, resp.Msg, resp.RequestId())
 	}
 
@@ -310,7 +316,9 @@ func (f *FeishuAppTableClient) InsertRecords(records []map[string]interface{}) e
 			for _, record := range records {
 				log.Printf("record: %+v", record)
 			}
-			log.Printf("raw body: %s", string(resp.ApiResp.RawBody))
+			if resp.ApiResp != nil {
+				log.Printf("raw body: %s", string(resp.ApiResp.RawBody))
+			}
 			log.Printf("tableId: %s, appToken: %s", f.TableID, f.AppToken)
 			return fmt.Errorf("code: %d, msg: %s, requestId: %s", resp.Code, resp.Msg, resp.RequestId())
 		}
@@ -435,7 +443,11 @@ func (f *FeishuAppTableClient) Query(filter larkbitable.FilterInfo, pageSize int
 	}
 
 	if !resp.Success() {
-		return nil, "", fmt.Errorf("code: %d, msg: %s, requestId: %s, rawBody: %s", resp.Code, resp.Msg, resp.RequestId(), string(resp.ApiResp.RawBody))
+		rawBody := ""
+		if resp.ApiResp != nil {
+			rawBody = string(resp.ApiResp.RawBody)
+		}
+		return nil, "", fmt.Errorf("code: %d, msg: %s, requestId: %s, rawBody: %s", resp.Code, resp.Msg, resp.RequestId(), rawBody)
 	}
 
 	if resp.Data == nil || resp.Data.Items == nil {
