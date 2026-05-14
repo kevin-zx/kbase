@@ -64,27 +64,24 @@ func ConvertInterface2TypeValue(data any, typeValue int) (any, error) {
 
 	switch typeValue {
 	case 1, 3, 13, 1005:
-		// 将interface{}转换为string
 		if data == nil {
 			return "", nil
 		}
 		return ConvertData2String(data), nil
 	case 2:
-		// 将interface{}转换为float64
 		return ConvertData2Number(data)
 	case 15:
 		return ConvertData2Link(data)
-	case 4, 18:
-		// 将interface{}转换为[]string
+	case 4, 18, 21:
 		return ConvertData2Array(data)
 	case 7:
-		// 将interface{}转换为bool
 		return ConvertData2Bool(data)
 	case 5, 1001, 1002:
 		return ConvertData2Unix(data)
-	case 11:
-		// 将interface{}转换为FeishuUser
+	case 11, 1003, 1004:
 		return ConvertData2User(data)
+	case 17, 19, 20, 22, 23:
+		return data, nil
 	default:
 		return nil, fmt.Errorf("unsupported type: %d", typeValue)
 	}
