@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"strings"
 	"time"
 
 	"github.com/kevin-zx/kbase/kfeishu/token"
@@ -21,13 +20,7 @@ type FeishuAppTableClient struct {
 }
 
 func (f *FeishuAppTableClient) shouldRetry(err error) bool {
-	if err == nil {
-		return false
-	}
-	if strings.Contains(err.Error(), "code: 1254607") {
-		return true
-	}
-	return false
+	return err != nil
 }
 
 func (f *FeishuAppTableClient) withRetry(fn func() error) error {
@@ -37,11 +30,9 @@ func (f *FeishuAppTableClient) withRetry(fn func() error) error {
 		if lastErr == nil || !f.shouldRetry(lastErr) {
 			return lastErr
 		}
-
-		log.Printf("Retry attempt %d/%d after error: %v", i+1, f.MaxRetries, lastErr)
-		if i < f.MaxRetries-1 {
-			time.Sleep(f.RetryDelay)
-		}
+		delay := f.RetryDelay * (1 << i)
+		log.Printf("Retry attempt %d/%d after error: %v, delay: %v", i+1, f.MaxRetries, lastErr, delay)
+		time.Sleep(delay)
 	}
 	return lastErr
 }
